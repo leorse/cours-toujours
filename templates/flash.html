@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}FLASH : {{ course.title }} - Cours Toujours!{% endblock %}
+
+{% block head %}
+<style>
+    :root {
+        --flash-primary: #f59e0b;
+        --flash-secondary: #8b5cf6;
+    }
+
+    .flash-container {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+
+    .flash-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        background: linear-gradient(135deg, var(--flash-primary), var(--flash-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900;
+        font-size: 3rem;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.3));
+    }
+
+    .flash-card {
+        margin-bottom: 2rem;
+        transition: transform 0.3s;
+    }
+
+    .flash-card:hover {
+        transform: scale(1.02);
+    }
+
+    .progress-sticky {
+        position: sticky;
+        top: 1rem;
+        z-index: 100;
+        margin-bottom: 2rem;
+    }
+
+    .flash-progress {
+        height: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+    }
+
+    .flash-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--flash-primary), var(--flash-secondary));
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flash-container">
+    <div class="progress-sticky">
+        <div class="glass glass-panel" style="padding: 1rem;">
+            <div
+                style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-weight: bold; font-size: 0.9rem;">
+                <span>Progression Flash</span>
+                <span id="progress-text">0 / {{ exercises|length }}</span>
+            </div>
+            <div class="flash-progress">
+                <div id="flash-fill" class="flash-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <header class="flash-header animate-fade-in">
+        ⚡ MODE FLASH ⚡
+    </header>
+
+    <div id="exercises-list">
+        <!-- Exercises will be rendered here -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/fraction_renderer.js"></script>
+<script>
+    const courseData = {
+        id: "{{ course.id }}",
+        exercises: {{ exercises | tojson }}
+    };
+    const userId = {{ user.id }};
+    const userProgress = null;
+    const isCompleted = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderExercises();
+        updateProgress();
+
+        // Render Math with KaTeX
+        renderMathInElement(document.getElementById('exercises-list'), {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+    });
+
+    function updateProgress() {
+        const total = courseData.exercises.length;
+        const answered = Object.keys(userAnswers).length;
+        const percent = (answered / total) * 100;
+
+        document.getElementById('flash-fill').style.width = `${percent}%`;
+        document.getElementById('progress-text').textContent = `${answered} / ${total}`;
+    }
+
+    function renderExercises() {
+        const container = document.getElementById('exercises-list');
+        container.innerHTML = '';
+
+        courseData.exercises.forEach((ex, index) => {
+            const card = document.createElement('div');
+            card.className = 'glass glass-panel flash-card animate-fade-in';
+            card.style.animationDelay = `${index * 100}ms`;
+            card.style.marginBottom = '2rem';
+
+            let contentHtml = '';
+
+            if (ex.type === 'drag_drop') {
+                let templateText = ex.template || '';
+                let parts = templateText.split('???');
+                let newHtml = '';
+
+                parts.forEach((part, i) => {
+                    newHtml += part;
+                    if (i < parts.length - 1) {
+                        const zoneId = `zone-${ex.id}-${i}`;
+                        newHtml += `<span class="drop-zone" id="${zoneId}" ondrop="drop(event, '${ex.id}', ${i})" ondragover="allowDrop(event)"></span>`;
+                    }
+                });
+
+                contentHtml = `
+                    <p style="margin-bottom: 1.5rem; font-size: 1.1rem; line-height: 2;">${newHtml}</p>
+                    <div class="options-container" style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                        ${ex.options.map(opt => {
+                    return `<div class="draggable-item" draggable="true" ondragstart="drag(event, '${opt.replace(/'/g, "\\'")}')">${opt}</div>`;
+                }).join('')}
+                    </div>
+                `;
+            } else if (ex.type === 'fraction_scenario') {
+                const cId = `visual-${ex.id}`;
+                contentHtml = `
+                    <div id="${cId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 250px; height: 250px;"></div>
+                    <p style="margin-bottom: 1rem;">${ex.question}</p>
+                    <input type="text" placeholder="Réponse" onchange="saveInput(this, '${ex.id}')" 
+                        style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white;">
+                 `;
+                setTimeout(() => {
+                    if (window.FractionRenderer) {
+                        FractionRenderer.render(cId, ex);
+                    }
+                }, 100);
+            } else {
+                contentHtml = `
+                    <p style="margin-bottom: 1.5rem; font-size: 1.1rem;">${ex.question || ex.template || ''}</p>
+                    <div class="options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        ${ex.options.map((opt, optIndex) => {
+                    return `
+                                <button class="option-btn" onclick="selectOption(this, '${ex.id}', ${optIndex})">
+                                    ${opt}
+                                </button>
+                            `;
+                }).join('')}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 1rem; color: var(--flash-primary);">Question ${index + 1}</div>
+                ${contentHtml}
+                <div id="feedback-${ex.id}" style="margin-top: 1rem; font-weight: bold;"></div>
+            `;
+            container.appendChild(card);
+        });
+
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn-primary';
+        submitBtn.style.width = '100%';
+        submitBtn.style.padding = '1.5rem';
+        submitBtn.style.fontSize = '1.2rem';
+        submitBtn.style.marginTop = '2rem';
+        submitBtn.style.background = 'linear-gradient(90deg, var(--flash-primary), var(--flash-secondary))';
+        submitBtn.textContent = 'VALIDER LE FLASH ⚡';
+        submitBtn.onclick = submitFlash;
+        container.appendChild(submitBtn);
+    }
+
+    const userAnswers = {};
+
+    function saveInput(input, exId) {
+        userAnswers[exId] = input.value;
+        updateProgress();
+    }
+
+    function selectOption(btn, exId, optIndex) {
+        const ex = courseData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+        userAnswers[exId] = ex.options[optIndex];
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        updateProgress();
+    }
+
+    function allowDrop(ev) {
+        ev.preventDefault();
+        ev.target.classList.add('drag-over');
+    }
+
+    function drag(ev, value) {
+        ev.dataTransfer.setData("text", value);
+    }
+
+    function drop(ev, exId, zoneIndex = 0) {
+        ev.preventDefault();
+        ev.target.classList.remove('drag-over');
+        var data = ev.dataTransfer.getData("text");
+        ev.target.textContent = data;
+        ev.target.classList.add('filled');
+        if (!userAnswers[exId]) userAnswers[exId] = [];
+        if (typeof userAnswers[exId] === 'string') userAnswers[exId] = [userAnswers[exId]];
+        userAnswers[exId][zoneIndex] = data;
+        updateProgress();
+    }
+
+    async function submitFlash() {
+        if (Object.keys(userAnswers).length < courseData.exercises.length) {
+            if (!confirm("Toutes les questions n'ont pas de réponse. Valider quand même ?")) return;
+        }
+
+        try {
+            const response = await fetch('/submit_test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    course_id: courseData.id,
+                    answers: userAnswers,
+                    generated_exercises: courseData.exercises
+                })
+            });
+
+            const result = await response.json();
+            let correctCount = 0;
+
+            for (const [exId, res] of Object.entries(result.results)) {
+                if (res.correct) correctCount++;
+                const fbDiv = document.getElementById(`feedback-${exId}`);
+                if (fbDiv) {
+                    fbDiv.innerHTML = res.correct ? "✅ NICKEL !" : `❌ RATE ! (Rép: ${res.correct_answer})`;
+                    fbDiv.style.color = res.correct ? "var(--success)" : "var(--error)";
+                }
+            }
+
+            if (correctCount > (courseData.exercises.length / 2)) {
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+            }
+
+            alert(`FLASH TERMINE ! Score: ${correctCount} / ${courseData.exercises.length}`);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } catch (error) {
+            alert("Erreur lors de la validation");
+        }
+    }
+</script>
+{% endblock %}

@@ -14,6 +14,8 @@ class Course(SQLModel, table=True):
     title: str
     order: int
     content_markdown: str
+    category_name: Optional[str] = Field(default=None)
+    category_order: int = Field(default=0)
     
     # Stockage des exercices en JSON (SQLite ne gère pas les tableaux nativement)
     exercises: List[dict] = Field(default=[], sa_column=Column(JSON))

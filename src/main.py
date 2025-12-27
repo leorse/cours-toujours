@@ -257,13 +257,54 @@ def test_page(course_id: str, request: Request, session: Session = Depends(get_s
         "exercises": exercises
     })
 
+@app.get("/flash/{subject_id}", response_class=HTMLResponse)
+def flash_page(subject_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/")
+        
+    subject = session.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+        
+    courses = session.exec(select(Course).where(Course.subject_id == subject_id)).all()
+    if not courses:
+        raise HTTPException(status_code=404, detail="No courses found for this subject")
+        
+    # Generate Exercises from all courses
+    exercises = TestGenerator.generate_flash(courses, total_questions=15)
+    
+    # We use a dummy course object to satisfy the template/submission logic
+    # Or we can pass it differently. Let's create a minimal course-like dict for the frontend.
+    flash_course = {
+        "id": f"flash_{subject_id}",
+        "title": f"Mode Flash : {subject.name}",
+        "subject_id": subject_id
+    }
+    
+    return templates.TemplateResponse("flash.html", {
+        "request": request,
+        "user": user,
+        "course": flash_course,
+        "exercises": exercises
+    })
+
 @app.post("/submit_test")
 def submit_test(submission: TestSubmitRequest, session: Session = Depends(get_session)):
-    course = session.get(Course, submission.course_id)
     user = session.get(User, submission.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_flash = submission.course_id.startswith("flash_")
+    subject_id = None
     
-    if not course or not user:
-        raise HTTPException(status_code=404, detail="Not found")
+    if is_flash:
+        # Expected ID format: flash_maths
+        subject_id = submission.course_id.replace("flash_", "")
+    else:
+        course = session.get(Course, submission.course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+        subject_id = course.subject_id
 
     xp_gained = 0
     results = {}
@@ -305,11 +346,11 @@ def submit_test(submission: TestSubmitRequest, session: Session = Depends(get_se
         
         progress = session.exec(select(SubjectProgress).where(
             SubjectProgress.user_id == user.id,
-            SubjectProgress.subject_id == course.subject_id
+            SubjectProgress.subject_id == subject_id
         )).first()
 
         if not progress:
-            progress = SubjectProgress(user_id=user.id, subject_id=course.subject_id, score=0)
+            progress = SubjectProgress(user_id=user.id, subject_id=subject_id, score=0)
         
         progress.score += xp_gained
         session.add(progress)

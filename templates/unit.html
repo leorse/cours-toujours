@@ -48,9 +48,28 @@
     const isCompleted = {{ 'true' if user_progress and user_progress.is_completed else 'false' }};
 
     document.addEventListener('DOMContentLoaded', () => {
-        // 1. Render Markdown with Marked.js
+        // 1. Render Markdown with Math Protection
         const mdContainer = document.getElementById('markdown-content');
-        mdContainer.innerHTML = marked.parse(mdContainer.textContent.trim());
+        const rawContent = mdContainer.textContent.trim();
+
+        const mathBlocks = [];
+        const protectedContent = rawContent.replace(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+            const index = mathBlocks.length;
+            mathBlocks.push(match);
+            return `<span class="math-px" data-idx="${index}"></span>`;
+        });
+
+        let renderedHtml = marked.parse(protectedContent);
+
+        // Restoration using a temporary DOM element to handle the string replacement easily
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = renderedHtml;
+        tempDiv.querySelectorAll('.math-px').forEach(span => {
+            const idx = span.getAttribute('data-idx');
+            span.outerHTML = mathBlocks[idx];
+        });
+
+        mdContainer.innerHTML = tempDiv.innerHTML;
 
         // 2. Render Math with KaTeX
         renderMathInElement(mdContainer, {

@@ -74,13 +74,29 @@ class TestGenerator:
             for _ in range(needed):
                 test_questions.append(TestGenerator.generate_fraction_simplification())
         
-        # 4. Shuffle if desired? Or keep course questions first?
-        # User said "questions de cours" and "simplifications". Usually tests are mixed or sectioned.
-        # Let's shuffle to make it feel like a real test.
+        # 4. Shuffle
         random.shuffle(test_questions)
         
-        # Re-assign IDs to be safe/unique if needed? 
-        # Actually existing IDs are short strings. generated are random ints.
-        # It should be fine as long as frontend handles them.
-        
         return test_questions
+
+    @staticmethod
+    def generate_flash(courses: List[Course], total_questions: int = 15) -> List[Dict[str, Any]]:
+        """
+        Generates a random mix of questions from multiple courses.
+        """
+        all_manual_exercises = []
+        for course in courses:
+            if course.exercises:
+                all_manual_exercises.extend(course.exercises)
+        
+        # Take up to half from manual exercises
+        manual_count = min(len(all_manual_exercises), total_questions // 2)
+        flash_questions = random.sample(all_manual_exercises, manual_count) if all_manual_exercises else []
+        
+        # Fill the rest with generated questions
+        while len(flash_questions) < total_questions:
+            # For now we only have fraction simplification, but we could add more
+            flash_questions.append(TestGenerator.generate_fraction_simplification())
+            
+        random.shuffle(flash_questions)
+        return flash_questions
