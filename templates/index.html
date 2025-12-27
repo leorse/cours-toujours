@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil - Cours Toujours!{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 3rem;">
+    <h1
+        style="font-size: 3rem; margin-bottom: 1rem; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Qui apprend aujourd'hui ?
+    </h1>
+    <p class="text-muted">Sélectionnez votre profil pour continuer</p>
+</div>
+
+<div class="profile-grid">
+    {% for user in users %}
+    <form action="/login" method="post" class="glass profile-card animate-fade-in"
+        style="animation-delay: {{ loop.index0 * 100 }}ms" onclick="this.submit()">
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+        <div class="profile-avatar">{{ user.username[0].upper() }}</div>
+        <h2>{{ user.username }}</h2>
+        <p class="text-muted">Niveau {{ (user.total_xp // 100) + 1 }}</p>
+    </form>
+    {% endfor %}
+
+    <!-- New Profile Card -->
+    <div class="glass profile-card animate-fade-in" style="animation-delay: {{ users|length * 100 }}ms"
+        onclick="document.getElementById('new-profile-form').style.display = 'flex'">
+        <div class="profile-avatar"
+            style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.2);">
+            +
+        </div>
+        <h2>Nouveau Profil</h2>
+    </div>
+</div>
+
+<!-- Modal for New Profile (Simple implementation) -->
+<div id="new-profile-form"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 100;">
+    <form action="/users/" method="post" class="glass-panel" style="min-width: 300px; text-align: center;">
+        <h2 style="margin-bottom: 1.5rem;">Créer un profil</h2>
+        <input type="text" name="username" placeholder="Votre nom" required
+            style="width: 100%; padding: 0.8rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; border-radius: var(--radius);">
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" class="btn-secondary"
+                onclick="document.getElementById('new-profile-form').style.display = 'none'">Annuler</button>
+            <button type="submit" class="btn-primary">Créer</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

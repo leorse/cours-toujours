@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} - Cours Toujours!{% endblock %}
+
+{% block content %}
+<div class="unit-container">
+    <!-- Course Content -->
+    <div class="glass glass-panel content-area animate-fade-in">
+        <header
+            style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <a href="/subjects/{{ course.subject_id }}"
+                    style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Retour au
+                    programme</a>
+                <h1 style="margin-top: 0.5rem;">{{ course.title }}</h1>
+            </div>
+        </header>
+
+        <!-- Markdown Content Container -->
+        <div id="markdown-content">
+            {{ course.content_markdown }}
+        </div>
+    </div>
+
+    <!-- Exercises Sidebar -->
+    <aside class="exercise-area animate-fade-in" style="animation-delay: 200ms;">
+        <button id="toggle-exercises-btn" title="Afficher/Masquer">&rarr;</button>
+        <div class="glass glass-panel">
+            <h3 style="margin-bottom: 1.5rem;">Exercices</h3>
+
+            <div id="exercises-list">
+                <!-- Exercises will be rendered here by JS -->
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/fraction_renderer.js"></script>
+<script>
+    const courseData = {
+        id: "{{ course.id }}",
+        exercises: {{ course.exercises | tojson }}
+    };
+    const userId = {{ user.id }};
+    const userProgress = {{ user_progress.answers | tojson if user_progress and user_progress.answers else 'null' }};
+    const isCompleted = {{ 'true' if user_progress and user_progress.is_completed else 'false' }};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Render Markdown with Marked.js
+        const mdContainer = document.getElementById('markdown-content');
+        mdContainer.innerHTML = marked.parse(mdContainer.textContent.trim());
+
+        // 2. Render Math with KaTeX
+        renderMathInElement(mdContainer, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+
+        // 3. Render Auto-Embedded Visuals in Markdown
+        // Look for <div class="fraction-demo" data-config='...'></div>
+        document.querySelectorAll('.fraction-demo').forEach((el, idx) => {
+            const configStr = el.getAttribute('data-config');
+            if (configStr) {
+                try {
+                    const config = JSON.parse(configStr);
+                    const uniqueId = `demo-viz-${idx}`;
+                    el.id = uniqueId;
+                    el.style.width = "200px";
+                    el.style.height = "200px";
+                    el.style.margin = "1rem auto";
+
+                    // Small delay to ensure layout
+                    setTimeout(() => {
+                        if (window.FractionRenderer) {
+                            FractionRenderer.render(uniqueId, config);
+                        }
+                    }, 0);
+                } catch (e) {
+                    console.error("Bad fraction config", e);
+                    el.innerHTML = "Error loading visual";
+                }
+            }
+        });
+
+        // 4. Render Exercises
+        renderExercises();
+
+        // 5. Toggle Exercises Handler
+        const toggleBtn = document.getElementById('toggle-exercises-btn');
+        const unitContainer = document.querySelector('.unit-container');
+
+        toggleBtn.addEventListener('click', () => {
+            unitContainer.classList.toggle('exercises-hidden');
+            const isHidden = unitContainer.classList.contains('exercises-hidden');
+            toggleBtn.innerHTML = isHidden ? '&larr;' : '&rarr;';
+        });
+    });
+
+    function renderExercises() {
+        const container = document.getElementById('exercises-list');
+        container.innerHTML = '';
+
+        if (!courseData.exercises || courseData.exercises.length === 0) {
+            container.innerHTML = '<p class="text-muted">Aucun exercice pour ce chapitre.</p>';
+            return;
+        }
+
+        courseData.exercises.forEach((ex, index) => {
+            const userAnswer = userProgress ? userProgress[ex.id] : null;
+            const card = document.createElement('div');
+            card.className = 'exercise-card';
+            card.style.marginBottom = '2rem';
+
+            // Render specific exercise types
+            let contentHtml = '';
+
+            if (ex.type === 'drag_drop') {
+                // Drag Drop Template Logic
+                let templateText = ex.template || '';
+
+                // Replace ALL occurrences of ??? with indexed drop zones
+                let parts = templateText.split('???');
+                let newHtml = '';
+
+                parts.forEach((part, i) => {
+                    newHtml += part;
+                    if (i < parts.length - 1) {
+                        const zoneId = `zone-${ex.id}-${i}`;
+                        // Handle both single string (legacy) and array answers
+                        let answerVal = null;
+                        if (userAnswer) {
+                            if (Array.isArray(userAnswer)) {
+                                answerVal = userAnswer[i];
+                            } else if (i === 0 && typeof userAnswer === 'string') {
+                                answerVal = userAnswer;
+                            }
+                        }
+
+                        let zoneHtml = `<span class="drop-zone" id="${zoneId}" ondrop="drop(event, '${ex.id}', ${i})" ondragover="allowDrop(event)"></span>`;
+
+                        if (answerVal) {
+                            zoneHtml = `<span class="drop-zone filled" id="${zoneId}">${answerVal}</span>`;
+                        }
+
+                        newHtml += zoneHtml;
+                    }
+                });
+
+                contentHtml = `
+                    <p style="margin-bottom: 1rem; line-height: 2.2;">${newHtml}</p>
+                    <div class="options-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        ${ex.options.map(opt => {
+                    return `<div class="draggable-item" draggable="${!isCompleted}" ondragstart="drag(event, '${opt}')">${opt}</div>`;
+                }).join('')}
+                    </div>
+                `;
+            } else if (ex.type === 'fraction_scenario') {
+                // Fraction Scenario
+                const cId = `visual-${ex.id}`;
+                contentHtml = `
+                    <div id="${cId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 300px; height: 300px;"></div>
+                    <p style="margin-bottom: 1rem;">${ex.question}</p>
+                    <input type="text" placeholder="Votre réponse (ex: 1/4 ou 0.25)" 
+                        onchange="saveInput(this, '${ex.id}')" 
+                        value="${userAnswer !== null ? userAnswer : ''}"
+                        ${isCompleted ? 'disabled' : ''}
+                        style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-primary); margin-bottom: 1rem;">
+                `;
+                // Defer rendering
+                setTimeout(() => {
+                    if (window.FractionRenderer) {
+                        FractionRenderer.render(cId, ex);
+                    }
+                }, 100);
+            } else {
+                // Standard Multiple Choice
+                contentHtml = `
+                    <p style="margin-bottom: 1rem;">${ex.question || ex.template || ''}</p>
+                    <div class="options-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        ${ex.options.map(opt => {
+                    const isSelected = userAnswer === opt;
+                    const extraClass = isSelected ? 'selected' : '';
+                    return `
+                                <button class="option-btn ${extraClass}" onclick="selectOption(this, '${ex.id}', '${opt}')" ${isCompleted ? 'disabled' : ''}>
+                                    ${opt}
+                                </button>
+                            `;
+                }).join('')}
+                    </div>
+                `;
+            }
+
+            // Determine result display if completed
+            let feedbackHtml = '';
+            if (isCompleted && userAnswer) {
+                let isCorrect = false;
+                if (Array.isArray(ex.answer)) {
+                    // Check if userAnswer is array and matches
+                    if (Array.isArray(userAnswer) && userAnswer.length === ex.answer.length) {
+                        isCorrect = userAnswer.every((val, idx) => String(val).trim() === String(ex.answer[idx]).trim());
+                    }
+                } else {
+                    isCorrect = String(userAnswer).trim() === String(ex.answer).trim();
+                }
+
+                feedbackHtml = `
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; font-weight: bold; color: ${isCorrect ? 'var(--success)' : 'var(--error)'}">
+                        ${isCorrect ? '✅ Correct' : '❌ Incorrect'}
+                    </div>
+                 `;
+            }
+
+            card.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--secondary);">
+                    Question ${index + 1} <span style="font-weight: normal; font-size: 0.8em; color: var(--text-muted);">(10 XP)</span>
+                </div>
+                ${contentHtml}
+                ${feedbackHtml}
+                <div id="feedback-${ex.id}" style="margin-top: 0.5rem; font-size: 0.9rem; display: none;"></div>
+            `;
+            container.appendChild(card);
+        });
+
+        if (!isCompleted) {
+            const submitBtn = document.createElement('button');
+            submitBtn.className = 'btn-primary';
+            submitBtn.style.width = '100%';
+            submitBtn.style.marginTop = '1rem';
+            submitBtn.textContent = 'Valider les réponses';
+            submitBtn.onclick = submitAnswers;
+            container.appendChild(submitBtn);
+        } else {
+            const msg = document.createElement('div');
+            msg.style.marginTop = "1rem";
+            msg.style.textAlign = "center";
+            msg.style.color = "var(--success)";
+            msg.innerHTML = "<strong>Exercice terminé !</strong>";
+            container.appendChild(msg);
+
+            const testBtn = document.createElement('a');
+            testBtn.href = `/test/${courseData.id}`;
+            testBtn.className = 'btn-primary';
+            testBtn.style.display = 'block';
+            testBtn.style.marginTop = '1rem';
+            testBtn.style.textAlign = 'center';
+            testBtn.style.textDecoration = 'none';
+            testBtn.textContent = 'Passer le Test Final';
+            container.appendChild(testBtn);
+        }
+
+        // Render Math in the newly added exercises
+        renderMathInElement(container, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+    }
+
+    const userAnswers = {};
+
+    // Standard Select
+    function selectOption(btn, exId, value) {
+        if (isCompleted) return;
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        userAnswers[exId] = value;
+    }
+
+    // Text Input
+    function saveInput(input, exId) {
+        if (isCompleted) return;
+        userAnswers[exId] = input.value;
+    }
+
+    // Drag and Drop Logic
+    function allowDrop(ev) {
+        ev.preventDefault();
+        ev.target.classList.add('drag-over');
+    }
+
+    // Reset drag style on leave (optional but nice)
+    // For brevity handling mostly in drop or via CSS hover but JS can help
+
+    function drag(ev, value) {
+        ev.dataTransfer.setData("text", value);
+    }
+
+    function drop(ev, exId, zoneIndex = 0) {
+        ev.preventDefault();
+        ev.target.classList.remove('drag-over');
+        if (isCompleted) return;
+
+        var data = ev.dataTransfer.getData("text");
+
+        // Visual Update
+        ev.target.textContent = data;
+        ev.target.classList.add('filled');
+
+        // Save Answer
+        if (!userAnswers[exId]) userAnswers[exId] = [];
+
+        // Helper to convert existing string answer to array if needed
+        if (typeof userAnswers[exId] === 'string') userAnswers[exId] = [userAnswers[exId]];
+
+        userAnswers[exId][zoneIndex] = data;
+    }
+
+    async function submitAnswers() {
+        if (Object.keys(userAnswers).length === 0) return;
+
+        try {
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    course_id: courseData.id,
+                    answers: userAnswers
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.already_completed) {
+                alert("Vous avez déjà validé cet exercice.");
+                location.reload();
+                return;
+            }
+
+            // Show Feedback & Reload to lock state
+            for (const [exId, isCorrect] of Object.entries(result.results)) {
+                // Not really strictly needed if we reload, but good for immediate feedback if we didn't reload
+            }
+
+            if (result.xp_gained > 0) {
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+
+                setTimeout(() => {
+                    location.reload(); // Reload to show locked state
+                }, 2000);
+            } else {
+                location.reload();
+            }
+
+        } catch (error) {
+            console.error('Error submitting:', error);
+            alert('Erreur lors de la soumission');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }} - LearnFlow{% endblock %}
+
+{% block content %}
+<header style="margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
+    <a href="/dashboard" class="btn-secondary">&larr; Retour</a>
+    <h1 style="font-size: 2.5rem;">{{ subject.name }}</h1>
+</header>
+
+<div class="glass glass-panel animate-fade-in">
+    <div class="chapter-list">
+        {% for course in courses %}
+        <a href="/unit/{{ course.id }}" class="chapter-item">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-weight: 800; color: var(--text-muted); width: 30px;">{{ loop.index }}</span>
+                <span style="font-size: 1.1rem; font-weight: 500;">{{ course.title }}</span>
+            </div>
+
+            {% if course.id in completed_courses %}
+            <span class="chapter-status done">Terminé</span>
+            {% else %}
+            <span class="chapter-status">À faire</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

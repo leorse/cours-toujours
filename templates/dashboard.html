@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Cours Toujours!{% endblock %}
+
+{% block content %}
+<header style="margin-bottom: 3rem;">
+    <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">C'est l'heure d'apprendre ! 🚀</h1>
+    <p style="color: var(--text-muted);">Voici tes matières pour aujourd'hui.</p>
+</header>
+
+<div class="subject-grid">
+    {% for subject in subjects %}
+    <a href="/subjects/{{ subject.id }}" class="glass glass-panel subject-card animate-fade-in">
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">{{ subject.name }}</h3>
+
+        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted);">
+            <span>Niveau {{ (progress.get(subject.id, 0) // 100) + 1 }}</span>
+            <span>{{ progress.get(subject.id, 0) }} XP</span>
+        </div>
+
+        <div class="progress-bar">
+            <!-- Simple calculation for progress within level -->
+            <div class="progress-fill" style="width: {{ progress.get(subject.id, 0) % 100 }}%"></div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
