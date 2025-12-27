@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from typing import List, Optional
 
 from src.database import create_db_and_tables, get_session
-from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, CourseProgress, TestSubmitRequest
+from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, RoadStep, RoadStepProgress, TestSubmitRequest
 from src.content_loader import sync_content
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
@@ -130,132 +130,184 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
         
-    courses = session.exec(select(Course).where(Course.subject_id == subject_id).order_by(Course.order)).all()
+    # Get all road steps for this subject
+    steps = session.exec(
+        select(RoadStep)
+        .where(RoadStep.subject_id == subject_id)
+        .order_by(RoadStep.order)
+    ).all()
     
-    # Calculate completed courses
-    completed_entries = session.exec(select(CourseProgress).where(
-        CourseProgress.user_id == user.id, 
-        CourseProgress.is_completed == True
+    # Calculate completed steps
+    completed_entries = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id, 
+        RoadStepProgress.is_completed == True
     )).all()
-    completed_courses = [c.course_id for c in completed_entries]
+    completed_steps = [p.step_id for p in completed_entries]
     
     return templates.TemplateResponse("subject.html", {
         "request": request,
         "user": user,
         "subject": subject,
-        "courses": courses,
-        "completed_courses": completed_courses
+        "steps": steps,
+        "completed_steps": completed_steps
     })
 
-@app.get("/unit/{course_id}", response_class=HTMLResponse)
-def unit_page(course_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+@app.get("/step/{step_id}", response_class=HTMLResponse)
+def step_page(step_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/")
         
-    course = session.get(Course, course_id)
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    step = session.get(RoadStep, step_id)
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    
+    course = step.course
+    
+    # Progression check: is the previous step completed?
+    if step.order > 0:
+        prev_step = session.exec(select(RoadStep).where(
+            RoadStep.subject_id == step.subject_id,
+            RoadStep.order == step.order - 1
+        )).first()
+        if prev_step:
+            progress = session.exec(select(RoadStepProgress).where(
+                RoadStepProgress.user_id == user.id,
+                RoadStepProgress.step_id == prev_step.id,
+                RoadStepProgress.is_completed == True
+            )).first()
+            if not progress:
+                # Optional: redirection if not unlocked
+                # return RedirectResponse(url=f"/subjects/{step.subject_id}?locked={step_id}")
+                pass
+
+    if step.type == "theory":
+        # Render theory page (unit.html style but with step context)
+        progress = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == user.id,
+            RoadStepProgress.step_id == step_id
+        )).first()
         
-    # Get user progress for this course
-    progress = session.exec(select(CourseProgress).where(
-        CourseProgress.user_id == user.id,
-        CourseProgress.course_id == course_id
-    )).first()
+        return templates.TemplateResponse("unit.html", {
+            "request": request,
+            "user": user,
+            "step": step,
+            "course": course,
+            "user_progress": progress
+        })
+    else:
+        # Render exercise page (test.html style)
+        # Generate exercises based on step type
+        count = 5 if step.type == "validation" else 10
+        exercises = TestGenerator.generate_step_exercises(course, step.type, count=count)
+        
+        # We reuse test.html or similar
+        return templates.TemplateResponse("test.html", {
+            "request": request,
+            "user": user,
+            "step": step,
+            "course": course,
+            "exercises": exercises
+        })
 
-    return templates.TemplateResponse("unit.html", {
-        "request": request,
-        "user": user,
-        "course": course,
-        "user_progress": progress
-    })
-
-@app.post("/submit")
-def submit(submission: SubmitRequest, session: Session = Depends(get_session)):
-    course = session.get(Course, submission.course_id)
+@app.post("/submit_step")
+def submit_step(submission: SubmitRequest, session: Session = Depends(get_session)):
+    step = session.get(RoadStep, submission.step_id)
     user = session.get(User, submission.user_id)
     
-    if not course or not user:
+    if not step or not user:
         raise HTTPException(status_code=404, detail="Not found")
 
-    # Check if already completed
-    existing_progress = session.exec(select(CourseProgress).where(
-        CourseProgress.user_id == user.id,
-        CourseProgress.course_id == course.id
+    xp_gained = 0
+    # For theory steps, we just mark as completed
+    if step.type == "theory":
+        xp_gained = 20
+    
+    # Save Progress
+    progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.step_id == step.id
     )).first()
 
-    if existing_progress and existing_progress.is_completed:
-        return {"xp_gained": 0, "results": {}, "total_xp": user.total_xp, "already_completed": True}
-
-    xp_gained = 0
-    results = {}
-
-    for exercise in course.exercises:
-        ex_id = exercise.get("id")
-        correct_val = exercise.get("answer")
-        user_val = submission.answers.get(ex_id)
-        
-        # Enhanced comparison logic
-        is_correct = smart_compare(user_val, correct_val)
-        results[ex_id] = is_correct
-        if is_correct:
-            xp_gained += 10
-
-    # Save Progress (Always save/update answers, but only mark completed if we want to lock it)
-    # Strategy: Mark completed if submitted (assuming all exercises attempted? Or just one submission attempt?)
-    # For now, let's mark as completed if they submit to prevent farming.
-    
-    if not existing_progress:
-        existing_progress = CourseProgress(
-            user_id=user.id, 
-            course_id=course.id, 
-            is_completed=True,
-            answers=submission.answers
-        )
-        session.add(existing_progress)
+    if not progress:
+        progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True, answers=submission.answers)
+        session.add(progress)
     else:
-        existing_progress.is_completed = True
-        existing_progress.answers = submission.answers
-        session.add(existing_progress)
+        if not progress.is_completed:
+            progress.is_completed = True
+            progress.answers = submission.answers
+            session.add(progress)
+        else:
+            xp_gained = 0 # No double XP
 
     if xp_gained > 0:
         user.total_xp += xp_gained
         session.add(user)
-
-        # Update Progress
-        progress = session.exec(select(SubjectProgress).where(
+        # Update Subject Progress
+        sub_prog = session.exec(select(SubjectProgress).where(
             SubjectProgress.user_id == user.id,
-            SubjectProgress.subject_id == course.subject_id
+            SubjectProgress.subject_id == step.subject_id
         )).first()
-
-        if not progress:
-            progress = SubjectProgress(user_id=user.id, subject_id=course.subject_id, score=0)
-        
-        progress.score += xp_gained
-        session.add(progress)
+        if not sub_prog:
+            sub_prog = SubjectProgress(user_id=user.id, subject_id=step.subject_id, score=0)
+        sub_prog.score += xp_gained
+        session.add(sub_prog)
     
     session.commit()
+    return {"xp_gained": xp_gained, "total_xp": user.total_xp}
 
-    return {"xp_gained": xp_gained, "results": results, "total_xp": user.total_xp}
+@app.post("/submit_test_step")
+def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(get_session)):
+    user = session.get(User, submission.user_id)
+    step = session.get(RoadStep, submission.step_id)
+    if not user or not step:
+        raise HTTPException(status_code=404, detail="Not found")
 
+    xp_gained = 0
+    results = {}
 
-@app.get("/test/{course_id}", response_class=HTMLResponse)
-def test_page(course_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/")
+    for exercise in submission.generated_exercises:
+        ex_id = exercise.get("id")
+        correct_val = exercise.get("answer")
+        user_val = submission.answers.get(ex_id)
         
-    course = session.get(Course, course_id)
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-        
-    # Generate Exercises
-    exercises = TestGenerator.generate_test(course, total_questions=20)
-    
-    return templates.TemplateResponse("test.html", {
-        "request": request,
-        "user": user,
-        "course": course,
-        "exercises": exercises
-    })
+        is_correct = smart_compare(user_val, correct_val)
+        results[ex_id] = { "correct": is_correct, "correct_answer": correct_val }
+        if is_correct:
+            xp_gained += 10
+
+    # Mark step as completed if at least some effort? Or always?
+    # Let's say it's completed if they submit (they can retry but stay completed)
+    progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.step_id == step.id
+    )).first()
+
+    first_time = False
+    if not progress:
+        progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True, answers=submission.answers)
+        session.add(progress)
+        first_time = True
+    else:
+        if not progress.is_completed:
+            progress.is_completed = True
+            first_time = True
+        progress.answers = submission.answers
+        session.add(progress)
+
+    if first_time and xp_gained > 0:
+        user.total_xp += xp_gained
+        session.add(user)
+        sub_prog = session.exec(select(SubjectProgress).where(
+            SubjectProgress.user_id == user.id,
+            SubjectProgress.subject_id == step.subject_id
+        )).first()
+        if not sub_prog:
+            sub_prog = SubjectProgress(user_id=user.id, subject_id=step.subject_id, score=0)
+        sub_prog.score += xp_gained
+        session.add(sub_prog)
+
+    session.commit()
+    return {"xp_gained": xp_gained if first_time else 0, "results": results, "total_xp": user.total_xp}
 
 @app.get("/flash/{subject_id}", response_class=HTMLResponse)
 def flash_page(subject_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -273,88 +325,23 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
     # Generate Exercises from all courses
     exercises = TestGenerator.generate_flash(courses, total_questions=15)
     
-    # We use a dummy course object to satisfy the template/submission logic
-    # Or we can pass it differently. Let's create a minimal course-like dict for the frontend.
     flash_course = {
         "id": f"flash_{subject_id}",
         "title": f"Mode Flash : {subject.name}",
         "subject_id": subject_id
     }
     
-    return templates.TemplateResponse("flash.html", {
+    # We can reuse test.html for flash mode by passing a dummy step-like object
+    flash_step = {
+        "id": f"flash_{subject_id}",
+        "title": f"Mode Flash : {subject.name}",
+        "type": "flash"
+    }
+
+    return templates.TemplateResponse("test.html", {
         "request": request,
         "user": user,
         "course": flash_course,
+        "step": flash_step,
         "exercises": exercises
     })
-
-@app.post("/submit_test")
-def submit_test(submission: TestSubmitRequest, session: Session = Depends(get_session)):
-    user = session.get(User, submission.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    is_flash = submission.course_id.startswith("flash_")
-    subject_id = None
-    
-    if is_flash:
-        # Expected ID format: flash_maths
-        subject_id = submission.course_id.replace("flash_", "")
-    else:
-        course = session.get(Course, submission.course_id)
-        if not course:
-            raise HTTPException(status_code=404, detail="Course not found")
-        subject_id = course.subject_id
-
-    xp_gained = 0
-    results = {}
-
-    for exercise in submission.generated_exercises:
-        ex_id = exercise.get("id")
-        correct_val = exercise.get("answer")
-        user_val = submission.answers.get(ex_id)
-        
-        # Comparison logic
-        is_correct = False
-        
-        # Normalize input to list if it's a drag-drop (often list) but passed as list of 1
-        # Or if correct answer is string but user sent list of 1 string
-        
-        def normalize(val):
-            if isinstance(val, list):
-                return [str(v).strip() for v in val]
-            return [str(val).strip()]
-
-        c_norm = normalize(correct_val)
-        u_norm = normalize(user_val) if user_val else []
-
-        # If size mismatch, it's wrong (unless allow partial? No)
-        # If size mismatch, it's wrong usually
-        if len(c_norm) != len(u_norm):
-             is_correct = False
-        else:
-             # Check item by item with smart_compare
-             is_correct = all(smart_compare(u, c) for u, c in zip(u_norm, c_norm))
-
-        results[ex_id] = { "correct": is_correct, "correct_answer": correct_val }
-        if is_correct:
-            xp_gained += 15 # Bonus XP
-
-    if xp_gained > 0:
-        user.total_xp += xp_gained
-        session.add(user)
-        
-        progress = session.exec(select(SubjectProgress).where(
-            SubjectProgress.user_id == user.id,
-            SubjectProgress.subject_id == subject_id
-        )).first()
-
-        if not progress:
-            progress = SubjectProgress(user_id=user.id, subject_id=subject_id, score=0)
-        
-        progress.score += xp_gained
-        session.add(progress)
-
-    session.commit()
-    
-    return {"xp_gained": xp_gained, "results": results, "total_xp": user.total_xp}

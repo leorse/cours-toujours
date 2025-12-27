@@ -12,6 +12,146 @@
 </header>
 
 <style>
+    .road-container {
+        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 4rem 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4rem;
+    }
+
+    /* Le trait de la route */
+    .road-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        z-index: 0;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* Le trait animé qui monte ou descend ? Non, statique avec effet de lueur */
+    .road-line-glow {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        background: linear-gradient(to bottom, var(--secondary), var(--primary));
+        opacity: 0.3;
+        filter: blur(4px);
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .road-node-wrapper {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Zig-zag : Alterner gauche / centre / droite */
+    .road-node-wrapper:nth-child(4n+1) {
+        justify-content: center;
+    }
+
+    .road-node-wrapper:nth-child(4n+2) {
+        justify-content: flex-start;
+        padding-left: 15%;
+    }
+
+    .road-node-wrapper:nth-child(4n+3) {
+        justify-content: center;
+    }
+
+    .road-node-wrapper:nth-child(4n+4) {
+        justify-content: flex-end;
+        padding-right: 15%;
+    }
+
+    .road-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .road-node:hover {
+        transform: scale(1.15);
+    }
+
+    .node-point {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: var(--glass-bg);
+        border: 4px solid var(--glass-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        box-shadow: var(--shadow-lg);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    /* Point pour la théorie (Gros point) */
+    .node-theory .node-point {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary), #8e44ad);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Point pour la pratique (Petit point) */
+    .node-practice .node-point {
+        width: 50px;
+        height: 50px;
+        background: var(--glass-bg);
+    }
+
+    .node-title {
+        margin-top: 0.8rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        white-space: nowrap;
+    }
+
+    /* États */
+    .node-done .node-point {
+        background: var(--success) !important;
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .node-locked {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .node-locked .node-point {
+        background: #333 !important;
+        filter: grayscale(1);
+    }
+
+    /* Ligne de connexion en zig-zag */
+    /* On utilise un SVG absolument positionné pour la vraie ligne si on veut que ce soit parfait, 
+       mais une ligne centrale simple avec des points décalés donne un style "sentier". */
+
     .flash-btn {
         width: 50px;
         height: 50px;
@@ -26,11 +166,6 @@
         box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         animation: pulse-gold 2s infinite;
-    }
-
-    .flash-btn:hover {
-        transform: scale(1.2) rotate(15deg);
-        box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
     }
 
     @keyframes pulse-gold {
@@ -48,45 +183,38 @@
     }
 </style>
 
-<div class="glass glass-panel animate-fade-in">
-    <div class="chapter-list">
-        {# Grouper par catégorie en conservant l'ordre #}
-        {% set grouped = [] %}
-        {% set cats_seen = {} %}
+<div class="road-container">
+    <div class="road-line"></div>
+    <div class="road-line-glow"></div>
 
-        {# On trie d'abord tous les cours par category_order et course.order #}
-        {% for course in courses|sort(attribute='category_order,order') %}
-        {% set cat_name = course.category_name or "Général" %}
-        {% if cat_name not in cats_seen %}
-        {% set _ = cats_seen.update({cat_name: grouped|length}) %}
-        {% set _ = grouped.append({'name': cat_name, 'courses': []}) %}
-        {% endif %}
-        {% set cat_idx = cats_seen[cat_name] %}
-        {% set _ = grouped[cat_idx]['courses'].append(course) %}
-        {% endfor %}
+    {% for step in steps %}
+    {% set is_completed = step.id in completed_steps %}
+    {% set is_unlocked = loop.first or (steps[loop.index0 - 1].id in completed_steps) %}
 
-        {% for section in grouped %}
-        <div class="category-section" style="margin-bottom: 2rem;">
-            <h3
-                style="padding: 1rem; border-bottom: 1px solid var(--glass-border); color: var(--secondary); background: rgba(255,255,255,0.02);">
-                {{ section.name }}
-            </h3>
-            {% for course in section.courses %}
-            <a href="/unit/{{ course.id }}" class="chapter-item">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span style="font-weight: 800; color: var(--text-muted); width: 30px;">{{ loop.index }}</span>
-                    <span style="font-size: 1.1rem; font-weight: 500;">{{ course.title }}</span>
-                </div>
+    <div class="road-node-wrapper">
+        <a href="/step/{{ step.id }}"
+            class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} {% if step.type == 'theory' %}node-theory{% else %}node-practice{% endif %}"
+            title="{{ step.title }}">
 
-                {% if course.id in completed_courses %}
-                <span class="chapter-status done">Terminé</span>
+            <div class="node-point">
+                {% if is_completed %}
+                ✅
+                {% elif step.type == 'theory' %}
+                📖
+                {% elif 'simple' in step.type %}
+                ⭐
+                {% elif 'medium' in step.type %}
+                ⭐⭐
+                {% elif 'hard' in step.type %}
+                ⭐⭐⭐
                 {% else %}
-                <span class="chapter-status">À faire</span>
+                🎯
                 {% endif %}
-            </a>
-            {% endfor %}
-        </div>
-        {% endfor %}
+            </div>
+
+            <div class="node-title">{{ step.title }}</div>
+        </a>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}

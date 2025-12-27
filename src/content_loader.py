@@ -7,8 +7,17 @@ from src.database import engine
 
 CONTENT_DIR = "content"
 
+import os
+import yaml
+import frontmatter
+from sqlmodel import Session, select
+from src.models import Subject, Course, RoadStep
+from src.database import engine
+
+CONTENT_DIR = "content"
+
 def sync_content():
-    print("🔄 Démarrage de la synchronisation du contenu...")
+    print("🔄 Démarrage de la synchronisation du contenu (Mode Route)...")
     
     with Session(engine) as session:
         if not os.path.exists(CONTENT_DIR):
@@ -27,84 +36,82 @@ def sync_content():
                     subject = Subject(id=subject_folder, name=display_name)
                     session.add(subject)
                 
-                # Charger l'ordre des catégories si disponible
-                subject_meta_path = os.path.join(subject_path, "meta.yaml")
-                category_order_map = {}
-                if os.path.exists(subject_meta_path):
-                    with open(subject_meta_path, "r", encoding="utf-8") as f:
-                        subject_meta = yaml.safe_load(f)
-                        if subject_meta and "categories" in subject_meta:
-                            category_order_map = {name: idx for idx, name in enumerate(subject_meta["categories"])}
+                # Charger le fichier road.yaml
+                road_path = os.path.join(subject_path, "road.yaml")
+                if not os.path.exists(road_path):
+                    print(f"⚠️ Aucun fichier road.yaml trouvé pour {subject_folder}. Utilisation du meta.yaml legacy ?")
+                    # On pourrait gérer un fallback, mais ici on impose la nouvelle structure
+                    continue
 
-                # 2. Explorer récursivement pour trouver des fichiers .md
-                for root, dirs, files in os.walk(subject_path):
-                    # Charger l'ordre des cours dans cette sous-catégorie
-                    category_meta_path = os.path.join(root, "meta.yaml")
-                    course_order_map = {}
-                    if os.path.exists(category_meta_path):
-                        with open(category_meta_path, "r", encoding="utf-8") as f:
-                            category_meta = yaml.safe_load(f)
-                            if category_meta and "courses" in category_meta:
-                                course_order_map = {cid: idx for idx, cid in enumerate(category_meta["courses"])}
+                with open(road_path, "r", encoding="utf-8") as f:
+                    road_data = yaml.safe_load(f)
+                    if not road_data or "road" not in road_data:
+                        print(f"❌ Format invalide pour {road_path}")
+                        continue
 
-                    for filename in files:
-                        if filename.endswith(".md"):
-                            file_path = os.path.join(root, filename)
-                            
-                            # Déterminer la catégorie
-                            rel_path = os.path.relpath(root, subject_path)
-                            category_folder_name = None
-                            category_desc = None
-                            cat_order = 999
-                            
-                            if rel_path != ".":
-                                # La catégorie est basée sur le dossier relatif
-                                category_folder_name = rel_path.split(os.sep)[0] # On prend seulement le 1er niveau pour la catégorie
-                                cat_order = category_order_map.get(category_folder_name, 999)
-                                
-                                category_desc = category_folder_name.replace("_", " ").capitalize()
-                                if "Fractions" in category_desc: category_desc = "Fractions"
+                # 2. Synchroniser les cours et les étapes dans l'ordre de la route
+                global_step_order = 0
+                for course_entry in road_data["road"]:
+                    course_id = course_entry["id"]
+                    title = course_entry.get("title", course_id.capitalize())
+                    generator = course_entry.get("generator", "generic")
+                    theory_file = course_entry.get("theory_file")
 
-                            with open(file_path, "r", encoding="utf-8") as f:
-                                try:
-                                    post = frontmatter.load(f)
-                                except Exception as e:
-                                    print(f"❌ Erreur lors du chargement de {file_path}: {e}")
-                                    continue
-                            
-                            meta = post.metadata
-                            content = post.content
-                            course_id = meta.get("id")
+                    # Charger le contenu markdown si spécifié
+                    content = ""
+                    exercises = []
+                    if theory_file:
+                        full_theory_path = os.path.join(subject_path, theory_file)
+                        if os.path.exists(full_theory_path):
+                            with open(full_theory_path, "r", encoding="utf-8") as tf:
+                                post = frontmatter.load(tf)
+                                content = post.content
+                                exercises = post.get("exercises", [])
+                        else:
+                            print(f"⚠️ Fichier théorie manquant: {full_theory_path}")
 
-                            if not course_id:
-                                continue
+                    # Upsert du cours
+                    course = session.get(Course, course_id)
+                    if not course:
+                        course = Course(
+                            id=course_id,
+                            title=title,
+                            content_markdown=content,
+                            generator_type=generator,
+                            exercises=exercises,
+                            subject_id=subject.id
+                        )
+                    else:
+                        course.title = title
+                        course.content_markdown = content
+                        course.generator_type = generator
+                        course.exercises = exercises
+                    
+                    session.add(course)
+                    session.flush() # Pour avoir l'ID si nécessaire
 
-                            # Déterminer l'ordre
-                            order = course_order_map.get(course_id, meta.get("order", 99))
-
-                            # Upsert du cours
-                            course = session.get(Course, course_id)
-                            if not course:
-                                course = Course(
-                                    id=course_id,
-                                    title=meta.get("title", "Sans titre"),
-                                    order=order,
-                                    content_markdown=content,
-                                    exercises=meta.get("exercises", []),
-                                    subject_id=subject.id,
-                                    category_name=category_desc,
-                                    category_order=cat_order
-                                )
-                            else:
-                                course.title = meta.get("title", "Sans titre")
-                                course.order = order
-                                course.content_markdown = content
-                                course.exercises = meta.get("exercises", [])
-                                course.subject_id = subject.id
-                                course.category_name = category_desc
-                                course.category_order = cat_order
-                            
-                            session.add(course)
+                    # Synchroniser les étapes du cours
+                    for step_entry in course_entry.get("steps", []):
+                        stype = step_entry["type"]
+                        stitle = step_entry.get("title", stype.capitalize())
+                        step_id = f"{course_id}_{stype}"
+                        
+                        step = session.get(RoadStep, step_id)
+                        if not step:
+                            step = RoadStep(
+                                id=step_id,
+                                title=stitle,
+                                type=stype,
+                                order=global_step_order,
+                                course_id=course_id,
+                                subject_id=subject.id
+                            )
+                        else:
+                            step.title = stitle
+                            step.order = global_step_order
+                        
+                        session.add(step)
+                        global_step_order += 1
         
         session.commit()
         print("✅ Synchronisation terminée.")

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Test: {{ course.title }} - Cours Toujours!{% endblock %}
+{% block title %}Entraînement: {{ step.title }} - Cours Toujours!{% endblock %}
 
 {% block content %}
 <div class="test-container" style="max-width: 900px; margin: 2rem auto; padding: 0 1rem;">
     <header style="margin-bottom: 3rem; text-align: center;">
-        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Test Final : {{ course.title }}</h1>
-        <p style="color: var(--text-muted);">Répondez aux 20 questions pour valider ce module.</p>
-        <a href="/unit/{{ course.id }}" style="color: var(--secondary); text-decoration: none;">&larr; Revenir au
-            cours</a>
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">{{ step.title }}</h1>
+        <p style="color: var(--text-muted);">Cours : {{ course.title }}</p>
+        <a href="/subjects/{{ course.subject_id }}" style="color: var(--secondary); text-decoration: none;">&larr;
+            Revenir à la route</a>
     </header>
 
     <div class="glass glass-panel animate-fade-in">
@@ -23,8 +23,8 @@
 <script src="/static/js/fraction_renderer.js"></script>
 <script>
     // Pass the GENERATED exercises here, not the course.exercises directly
-    const courseData = {
-        id: "{{ course.id }}",
+    const stepData = {
+        id: "{{ step.id }}",
         exercises: {{ exercises | tojson }}
     };
     const userId = {{ user.id }};
@@ -52,12 +52,12 @@
         const container = document.getElementById('exercises-list');
         container.innerHTML = '';
 
-        if (!courseData.exercises || courseData.exercises.length === 0) {
+        if (!stepData.exercises || stepData.exercises.length === 0) {
             container.innerHTML = '<p class="text-muted">Aucune question générée.</p>';
             return;
         }
 
-        courseData.exercises.forEach((ex, index) => {
+        stepData.exercises.forEach((ex, index) => {
             const card = document.createElement('div');
             card.className = 'exercise-card';
             card.style.marginBottom = '3rem';
@@ -102,12 +102,20 @@
                         FractionRenderer.render(cId, ex);
                     }
                 }, 100);
+            } else if (ex.type === 'input') {
+                contentHtml = `
+                    <p style="margin-bottom: 1.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
+                    <input type="text" placeholder="Votre réponse" 
+                        onchange="saveInput(this, '${ex.id}')" 
+                        style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-primary);">
+                `;
             } else {
                 // MCQ / QCM
+                const options = ex.options || [];
                 contentHtml = `
                     <p style="margin-bottom: 1.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
                     <div class="options-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                        ${ex.options.map((opt, optIndex) => {
+                        ${options.map((opt, optIndex) => {
                     return `
                                 <button class="option-btn" onclick="selectOption(this, '${ex.id}', ${optIndex})">
                                     ${opt}
@@ -147,7 +155,7 @@
 
     function selectOption(btn, exId, optIndex) {
         // Find the exercise object
-        const ex = courseData.exercises.find(e => e.id === exId);
+        const ex = stepData.exercises.find(e => e.id === exId);
         if (!ex) return;
 
         const value = ex.options[optIndex];
@@ -179,7 +187,7 @@
     }
 
     async function submitTest() {
-        if (Object.keys(userAnswers).length < courseData.exercises.length) {
+        if (Object.keys(userAnswers).length < stepData.exercises.length) {
             if (!confirm("Vous n'avez pas répondu à toutes les questions. Voulez-vous vraiment valider ?")) {
                 return;
             }
@@ -209,15 +217,15 @@
             // We can send the "generated_exercises" back to the server in the submit body?
             // Yes, user could cheat by inspecting payload, but for this app level it's fine.
 
-            const response = await fetch('/submit_test', {
+            const response = await fetch('/submit_test_step', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId,
-                    course_id: courseData.id,
+                    step_id: stepData.id,
                     answers: userAnswers,
                     // Sending back the exercises so server knows what the questions were
-                    generated_exercises: courseData.exercises
+                    generated_exercises: stepData.exercises
                 })
             });
 
@@ -245,7 +253,7 @@
                 }
             }
 
-            alert(`Test terminé ! Score: ${correctCount} / ${courseData.exercises.length}`);
+            alert(`Étape terminée ! Score: ${correctCount} / ${stepData.exercises.length}`);
 
             if (result.xp_gained > 0) {
                 if (result.xp_gained > 0) {

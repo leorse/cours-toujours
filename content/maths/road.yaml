@@ -1,0 +1,112 @@
+road:
+  - id: additions
+    title: "Les Additions"
+    generator: addition
+    theory_file: calculs/additions.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: soustractions
+    title: "Les Soustractions"
+    generator: soustraction
+    theory_file: calculs/soustractions.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: multiplications
+    title: "Les Multiplications"
+    generator: multiplication
+    theory_file: calculs/multiplications.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: divisions
+    title: "Les Divisions"
+    generator: division
+    theory_file: calculs/divisions.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: fractions
+    title: "Découvrir les Fractions"
+    generator: fraction
+    theory_file: fractions/fractions.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: fractions_addition
+    title: "Addition de Fractions"
+    generator: fraction_addition
+    theory_file: fractions/fractions_addition.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"
+
+  - id: relatifs_mult
+    title: "Multiplication de Relatifs"
+    generator: relatifs_multiplication
+    theory_file: nombres_relatifs/nombres_relatif_multiplications.md
+    steps:
+      - type: theory
+        title: "La Théorie"
+      - type: validation
+        title: "Validation"
+      - type: practice_simple
+        title: "S'entraîner (Facile)"
+      - type: practice_medium
+        title: "S'entraîner (Moyen)"
+      - type: practice_hard
+        title: "S'entraîner (Difficile)"

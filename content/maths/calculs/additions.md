@@ -27,6 +27,8 @@ $$12 + 5 = 17$$
 * Les nombres que l'on additionne ($12$ et $5$) s'appellent les **termes**.
 * Le résultat ($17$) s'appelle la **somme**.
 
+&&&
+
 ---
 
 ## 2. Les super-pouvoirs de l'addition
@@ -42,6 +44,8 @@ $$(7 + 13) + 5 = 20 + 5 = 25$$
 ### C. L'élément neutre (Le zéro)
 Ajouter $0$ ne change absolument rien au nombre de départ.
 $$15 + 0 = 15$$
+
+&&&
 
 ---
 
@@ -63,6 +67,8 @@ $$
 
 > **Attention aux retenues !** Quand la somme d'une colonne dépasse 9, on pose l'unité en bas et on "retient" la dizaine en haut de la colonne suivante.
 
+&&&
+
 ---
 
 ## 4. Additionner des nombres décimaux (à virgule)
@@ -81,7 +87,7 @@ $$
 \end{array}
 $$
 
-
+&&&
 
 ---
 
@@ -96,3 +102,5 @@ Pour aller plus vite que l'éclair, cherche les **compléments à 10** :
 
 **Exemple :** Pour calculer $17 + 8$, fais $17 + 3$ (pour arriver à 20) puis ajoute les $5$ restants.  
 $$17 + 3 + 5 = 25$$
+
+&&&

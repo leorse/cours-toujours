@@ -1,279 +1,238 @@
 {% extends "base.html" %}
 
-{% block title %}{{ course.title }} - Cours Toujours!{% endblock %}
+{% block title %}{{ step.title }} - Cours Toujours!{% endblock %}
 
 {% block content %}
 <div class="unit-container">
     <!-- Course Content -->
     <div class="glass glass-panel content-area animate-fade-in">
-        <header
-            style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: start;">
-            <div>
-                <a href="/subjects/{{ course.subject_id }}"
-                    style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Retour au
-                    programme</a>
-                <h1 style="margin-top: 0.5rem;">{{ course.title }}</h1>
-            </div>
+        <header style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 2rem;">
+            <a href="/subjects/{{ course.subject_id }}"
+                style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Retour à la route</a>
+            <h1 style="margin-top: 0.5rem;">{{ step.title }}</h1>
+            <p style="color: var(--secondary); font-size: 0.9rem;">Cours : {{ course.title }}</p>
         </header>
 
-        <!-- Markdown Content Container -->
-        <div id="markdown-content">
-            {{ course.content_markdown }}
+        <!-- Dynamic Content Container -->
+        <div id="progressive-content">
+            <!-- Sections and exercises will be injected here -->
+        </div>
+
+        <div id="final-footer"
+            style="display: none; margin-top: 3rem; text-align: center; padding: 2rem; border-top: 1px dashed var(--glass-border);">
+            <h3 style="color: var(--success); margin-bottom: 1rem;">🎉 Bravo ! Tu as terminé ce chapitre.</h3>
+            <button class="btn-primary" onclick="finishStep()">Valider et continuer</button>
         </div>
     </div>
-
-    <!-- Exercises Sidebar -->
-    <aside class="exercise-area animate-fade-in" style="animation-delay: 200ms;">
-        <button id="toggle-exercises-btn" title="Afficher/Masquer">&rarr;</button>
-        <div class="glass glass-panel">
-            <h3 style="margin-bottom: 1.5rem;">Exercices</h3>
-
-            <div id="exercises-list">
-                <!-- Exercises will be rendered here by JS -->
-            </div>
-        </div>
-    </aside>
 </div>
+
+<script id="course-markdown" type="application/json">{{ course.content_markdown | tojson }}</script>
+
+
+
+<style>
+    .theory-section {
+        margin-bottom: 2rem;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.5s ease;
+    }
+
+    .theory-section.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .interleaved-exercise {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        display: none;
+    }
+
+    .interleaved-exercise.visible {
+        display: block;
+        border-left: 4px solid var(--secondary);
+    }
+
+    .exercise-done {
+        border-left-color: var(--success) !important;
+        background: rgba(46, 204, 113, 0.05) !important;
+    }
+
+    .drop-zone {
+        display: inline-block;
+        min-width: 60px;
+        min-height: 1.5em;
+        border: 2px dashed var(--text-muted);
+        border-radius: 6px;
+        vertical-align: middle;
+        margin: 0 0.5rem;
+        text-align: center;
+        padding: 0 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .drop-zone.drag-over {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    .drop-zone.filled {
+        border-style: solid;
+        border-color: var(--success);
+        color: var(--success);
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .draggable-item {
+        padding: 0.5rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--glass-border);
+        border-radius: 6px;
+        cursor: grab;
+        display: inline-block;
+        margin: 0.2rem;
+        user-select: none;
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/fraction_renderer.js"></script>
 <script>
-    const courseData = {
-        id: "{{ course.id }}",
-        exercises: {{ course.exercises | tojson }}
+    const stepData = {
+        id: "{{ step.id }}",
+        exercises: {{ course.exercises | tojson if course.exercises else '[]' }}
     };
+    const markdownText = JSON.parse(document.getElementById('course-markdown').textContent);
+    stepData.rawContent = markdownText;
     const userId = {{ user.id }};
-    const userProgress = {{ user_progress.answers | tojson if user_progress and user_progress.answers else 'null' }};
-    const isCompleted = {{ 'true' if user_progress and user_progress.is_completed else 'false' }};
+    const isAlreadyCompleted = {{ 'true' if user_progress and user_progress.is_completed else 'false' }};
+
+    const sections = (stepData.rawContent || "").split('&&&').map(s => s.trim()).filter(s => s.length > 0);
+    const container = document.getElementById('progressive-content');
 
     document.addEventListener('DOMContentLoaded', () => {
-        // 1. Render Markdown with Math Protection
-        const mdContainer = document.getElementById('markdown-content');
-        const rawContent = mdContainer.textContent.trim();
-
-        const mathBlocks = [];
-        const protectedContent = rawContent.replace(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g, (match) => {
-            const index = mathBlocks.length;
-            mathBlocks.push(match);
-            return `<span class="math-px" data-idx="${index}"></span>`;
-        });
-
-        let renderedHtml = marked.parse(protectedContent);
-
-        // Restoration using a temporary DOM element to handle the string replacement easily
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = renderedHtml;
-        tempDiv.querySelectorAll('.math-px').forEach(span => {
-            const idx = span.getAttribute('data-idx');
-            span.outerHTML = mathBlocks[idx];
-        });
-
-        mdContainer.innerHTML = tempDiv.innerHTML;
-
-        // 2. Render Math with KaTeX
-        renderMathInElement(mdContainer, {
-            delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false }
-            ],
-            throwOnError: false
-        });
-
-        // 3. Render Auto-Embedded Visuals in Markdown
-        // Look for <div class="fraction-demo" data-config='...'></div>
-        document.querySelectorAll('.fraction-demo').forEach((el, idx) => {
-            const configStr = el.getAttribute('data-config');
-            if (configStr) {
-                try {
-                    const config = JSON.parse(configStr);
-                    const uniqueId = `demo-viz-${idx}`;
-                    el.id = uniqueId;
-                    el.style.width = "200px";
-                    el.style.height = "200px";
-                    el.style.margin = "1rem auto";
-
-                    // Small delay to ensure layout
-                    setTimeout(() => {
-                        if (window.FractionRenderer) {
-                            FractionRenderer.render(uniqueId, config);
-                        }
-                    }, 0);
-                } catch (e) {
-                    console.error("Bad fraction config", e);
-                    el.innerHTML = "Error loading visual";
-                }
-            }
-        });
-
-        // 4. Render Exercises
-        renderExercises();
-
-        // 5. Toggle Exercises Handler
-        const toggleBtn = document.getElementById('toggle-exercises-btn');
-        const unitContainer = document.querySelector('.unit-container');
-
-        toggleBtn.addEventListener('click', () => {
-            unitContainer.classList.toggle('exercises-hidden');
-            const isHidden = unitContainer.classList.contains('exercises-hidden');
-            toggleBtn.innerHTML = isHidden ? '&larr;' : '&rarr;';
-        });
+        if (isAlreadyCompleted) {
+            renderFullContent();
+        } else {
+            renderSection(0);
+        }
     });
 
-    function renderExercises() {
-        const container = document.getElementById('exercises-list');
-        container.innerHTML = '';
-
-        if (!courseData.exercises || courseData.exercises.length === 0) {
-            container.innerHTML = '<p class="text-muted">Aucun exercice pour ce chapitre.</p>';
+    function renderSection(index) {
+        if (index >= sections.length) {
+            document.getElementById('final-footer').style.display = 'block';
             return;
         }
 
-        courseData.exercises.forEach((ex, index) => {
-            const userAnswer = userProgress ? userProgress[ex.id] : null;
-            const card = document.createElement('div');
-            card.className = 'exercise-card';
-            card.style.marginBottom = '2rem';
+        const sectionDiv = document.createElement('div');
+        sectionDiv.className = 'theory-section';
+        sectionDiv.id = `section-${index}`;
 
-            // Render specific exercise types
-            let contentHtml = '';
-
-            if (ex.type === 'drag_drop') {
-                // Drag Drop Template Logic
-                let templateText = ex.template || '';
-
-                // Replace ALL occurrences of ??? with indexed drop zones
-                let parts = templateText.split('???');
-                let newHtml = '';
-
-                parts.forEach((part, i) => {
-                    newHtml += part;
-                    if (i < parts.length - 1) {
-                        const zoneId = `zone-${ex.id}-${i}`;
-                        // Handle both single string (legacy) and array answers
-                        let answerVal = null;
-                        if (userAnswer) {
-                            if (Array.isArray(userAnswer)) {
-                                answerVal = userAnswer[i];
-                            } else if (i === 0 && typeof userAnswer === 'string') {
-                                answerVal = userAnswer;
-                            }
-                        }
-
-                        let zoneHtml = `<span class="drop-zone" id="${zoneId}" ondrop="drop(event, '${ex.id}', ${i})" ondragover="allowDrop(event)"></span>`;
-
-                        if (answerVal) {
-                            zoneHtml = `<span class="drop-zone filled" id="${zoneId}">${answerVal}</span>`;
-                        }
-
-                        newHtml += zoneHtml;
-                    }
-                });
-
-                contentHtml = `
-                    <p style="margin-bottom: 1rem; line-height: 2.2;">${newHtml}</p>
-                    <div class="options-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                        ${ex.options.map(opt => {
-                    return `<div class="draggable-item" draggable="${!isCompleted}" ondragstart="drag(event, '${opt}')">${opt}</div>`;
-                }).join('')}
-                    </div>
-                `;
-            } else if (ex.type === 'fraction_scenario') {
-                // Fraction Scenario
-                const cId = `visual-${ex.id}`;
-                contentHtml = `
-                    <div id="${cId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 300px; height: 300px;"></div>
-                    <p style="margin-bottom: 1rem;">${ex.question}</p>
-                    <input type="text" placeholder="Votre réponse (ex: 1/4 ou 0.25)" 
-                        onchange="saveInput(this, '${ex.id}')" 
-                        value="${userAnswer !== null ? userAnswer : ''}"
-                        ${isCompleted ? 'disabled' : ''}
-                        style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-primary); margin-bottom: 1rem;">
-                `;
-                // Defer rendering
-                setTimeout(() => {
-                    if (window.FractionRenderer) {
-                        FractionRenderer.render(cId, ex);
-                    }
-                }, 100);
-            } else {
-                // Standard Multiple Choice
-                contentHtml = `
-                    <p style="margin-bottom: 1rem;">${ex.question || ex.template || ''}</p>
-                    <div class="options-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                        ${ex.options.map(opt => {
-                    const isSelected = userAnswer === opt;
-                    const extraClass = isSelected ? 'selected' : '';
-                    return `
-                                <button class="option-btn ${extraClass}" onclick="selectOption(this, '${ex.id}', '${opt}')" ${isCompleted ? 'disabled' : ''}>
-                                    ${opt}
-                                </button>
-                            `;
-                }).join('')}
-                    </div>
-                `;
-            }
-
-            // Determine result display if completed
-            let feedbackHtml = '';
-            if (isCompleted && userAnswer) {
-                let isCorrect = false;
-                if (Array.isArray(ex.answer)) {
-                    // Check if userAnswer is array and matches
-                    if (Array.isArray(userAnswer) && userAnswer.length === ex.answer.length) {
-                        isCorrect = userAnswer.every((val, idx) => String(val).trim() === String(ex.answer[idx]).trim());
-                    }
-                } else {
-                    isCorrect = String(userAnswer).trim() === String(ex.answer).trim();
-                }
-
-                feedbackHtml = `
-                    <div style="margin-top: 0.5rem; font-size: 0.9rem; font-weight: bold; color: ${isCorrect ? 'var(--success)' : 'var(--error)'}">
-                        ${isCorrect ? '✅ Correct' : '❌ Incorrect'}
-                    </div>
-                 `;
-            }
-
-            card.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--secondary);">
-                    Question ${index + 1} <span style="font-weight: normal; font-size: 0.8em; color: var(--text-muted);">(10 XP)</span>
-                </div>
-                ${contentHtml}
-                ${feedbackHtml}
-                <div id="feedback-${ex.id}" style="margin-top: 0.5rem; font-size: 0.9rem; display: none;"></div>
-            `;
-            container.appendChild(card);
+        // Protect Math
+        const mathBlocks = [];
+        const protectedContent = sections[index].replace(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+            const idx = mathBlocks.length;
+            mathBlocks.push(match);
+            return `<span class="math-px" data-idx="${idx}"></span>`;
         });
 
-        if (!isCompleted) {
-            const submitBtn = document.createElement('button');
-            submitBtn.className = 'btn-primary';
-            submitBtn.style.width = '100%';
-            submitBtn.style.marginTop = '1rem';
-            submitBtn.textContent = 'Valider les réponses';
-            submitBtn.onclick = submitAnswers;
-            container.appendChild(submitBtn);
-        } else {
-            const msg = document.createElement('div');
-            msg.style.marginTop = "1rem";
-            msg.style.textAlign = "center";
-            msg.style.color = "var(--success)";
-            msg.innerHTML = "<strong>Exercice terminé !</strong>";
-            container.appendChild(msg);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = marked.parse(protectedContent);
 
-            const testBtn = document.createElement('a');
-            testBtn.href = `/test/${courseData.id}`;
-            testBtn.className = 'btn-primary';
-            testBtn.style.display = 'block';
-            testBtn.style.marginTop = '1rem';
-            testBtn.style.textAlign = 'center';
-            testBtn.style.textDecoration = 'none';
-            testBtn.textContent = 'Passer le Test Final';
-            container.appendChild(testBtn);
+        // Restore Math safely (No innerHTML roundtrip after restoration)
+        tempDiv.querySelectorAll('.math-px').forEach(span => {
+            const idx = span.getAttribute('data-idx');
+            const mathText = mathBlocks[idx];
+            span.replaceWith(document.createTextNode(mathText));
+        });
+
+        sectionDiv.appendChild(tempDiv);
+        container.appendChild(sectionDiv);
+
+        renderMathInElement(sectionDiv, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+
+        setTimeout(() => sectionDiv.classList.add('visible'), 10);
+
+        const exercise = stepData.exercises[index];
+        if (exercise) {
+            renderExercise(index, exercise);
+        } else {
+            if (index < sections.length - 1) {
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-secondary';
+                nextBtn.style.margin = '1rem 0 3rem 0';
+                nextBtn.textContent = 'Continuer la lecture ⬇️';
+                nextBtn.onclick = (e) => {
+                    e.target.remove();
+                    renderSection(index + 1);
+                };
+                container.appendChild(nextBtn);
+            } else {
+                renderSection(index + 1);
+            }
+        }
+    }
+
+    function renderExercise(index, ex) {
+        const exDiv = document.createElement('div');
+        exDiv.className = 'interleaved-exercise visible';
+        exDiv.id = `ex-wrapper-${index}`;
+
+        exDiv.innerHTML = `
+            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 1rem;">✍️ Petite vérification...</div>
+            <div id="ex-content-${index}"></div>
+            <div id="ex-feedback-${index}" style="margin-top: 1rem; font-weight: bold; display: none;"></div>
+            <button id="ex-btn-${index}" class="btn-primary" style="margin-top: 1rem;" onclick="validateExercise(${index})">Vérifier</button>
+        `;
+        container.appendChild(exDiv);
+
+        const contentDiv = document.getElementById(`ex-content-${index}`);
+        if (ex.type === 'qcm') {
+            contentDiv.innerHTML = `
+                <p style="margin-bottom: 1rem;">${ex.question}</p>
+                <div class="options-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    ${ex.options.map(opt => `
+                        <button class="option-btn" onclick="selectOption(this, ${index}, '${opt}')">${opt}</button>
+                    `).join('')}
+                </div>
+            `;
+        } else if (ex.type === 'drag_drop') {
+            let templateText = ex.template || '';
+            let parts = templateText.split('???');
+            let newHtml = '';
+
+            parts.forEach((part, i) => {
+                newHtml += part;
+                if (i < parts.length - 1) {
+                    const zoneId = `zone-${index}-${i}`;
+                    newHtml += `<span class="drop-zone" id="${zoneId}" ondrop="onDrop(event, ${index}, ${i})" ondragover="allowDrop(event)"></span>`;
+                }
+            });
+
+            contentDiv.innerHTML = `
+                <div style="margin-bottom: 1rem; line-height: 2.2; font-size: 1.1rem;">${newHtml}</div>
+                <div class="options-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    ${ex.options.map(opt => `
+                        <div class="draggable-item" draggable="true" ondragstart="onDragStart(event, '${opt.replace(/'/g, "\\'")}')">${opt}</div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            contentDiv.innerHTML = `<p>${ex.question || ex.template}</p><p class="text-muted">(Exercice non supporté en ligne pour le moment)</p>`;
         }
 
-        // Render Math in the newly added exercises
-        renderMathInElement(container, {
+        renderMathInElement(contentDiv, {
             delimiters: [
                 { left: '$$', right: '$$', display: true },
                 { left: '$', right: '$', display: false }
@@ -282,100 +241,144 @@
         });
     }
 
-    const userAnswers = {};
+    const answers = {};
 
-    // Standard Select
-    function selectOption(btn, exId, value) {
-        if (isCompleted) return;
+    function selectOption(btn, index, val) {
         const parent = btn.parentElement;
         parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-        userAnswers[exId] = value;
+        answers[index] = val;
     }
 
-    // Text Input
-    function saveInput(input, exId) {
-        if (isCompleted) return;
-        userAnswers[exId] = input.value;
-    }
-
-    // Drag and Drop Logic
+    // Drag and Drop Handlers
     function allowDrop(ev) {
         ev.preventDefault();
         ev.target.classList.add('drag-over');
     }
 
-    // Reset drag style on leave (optional but nice)
-    // For brevity handling mostly in drop or via CSS hover but JS can help
-
-    function drag(ev, value) {
+    function onDragStart(ev, value) {
         ev.dataTransfer.setData("text", value);
     }
 
-    function drop(ev, exId, zoneIndex = 0) {
+    function onDrop(ev, index, zoneIndex) {
         ev.preventDefault();
         ev.target.classList.remove('drag-over');
-        if (isCompleted) return;
+        const data = ev.dataTransfer.getData("text");
 
-        var data = ev.dataTransfer.getData("text");
-
-        // Visual Update
         ev.target.textContent = data;
         ev.target.classList.add('filled');
 
-        // Save Answer
-        if (!userAnswers[exId]) userAnswers[exId] = [];
+        if (!answers[index]) answers[index] = [];
+        if (!Array.isArray(answers[index])) answers[index] = [answers[index]];
 
-        // Helper to convert existing string answer to array if needed
-        if (typeof userAnswers[exId] === 'string') userAnswers[exId] = [userAnswers[exId]];
-
-        userAnswers[exId][zoneIndex] = data;
+        answers[index][zoneIndex] = data;
     }
 
-    async function submitAnswers() {
-        if (Object.keys(userAnswers).length === 0) return;
+    function validateExercise(index) {
+        const ex = stepData.exercises[index];
+        const userVal = answers[index];
+        const feedback = document.getElementById(`ex-feedback-${index}`);
+        const wrapper = document.getElementById(`ex-wrapper-${index}`);
+        const btn = document.getElementById(`ex-btn-${index}`);
 
+        if (!userVal) {
+            alert("S'il te plaît, réponds à la question avant de vérifier !");
+            return;
+        }
+
+        let isCorrect = false;
+        if (Array.isArray(ex.answer)) {
+            if (Array.isArray(userVal) && userVal.length === ex.answer.length) {
+                isCorrect = userVal.every((v, i) => String(v).trim() === String(ex.answer[i]).trim());
+            }
+        } else {
+            // If userVal is array but answer is single string (single ???)
+            const finalUserVal = Array.isArray(userVal) ? userVal[0] : userVal;
+            isCorrect = String(finalUserVal).trim() === String(ex.answer).trim();
+        }
+
+        if (isCorrect) {
+            feedback.innerHTML = "✅ Excellent ! La suite 👇";
+            feedback.style.color = "var(--success)";
+            feedback.style.display = "block";
+            wrapper.classList.add('exercise-done');
+
+            // Lock inputs
+            if (ex.type === 'qcm') {
+                wrapper.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+            } else if (ex.type === 'drag_drop') {
+                wrapper.querySelectorAll('.draggable-item').forEach(d => d.draggable = false);
+            }
+
+            btn.remove();
+            renderSection(index + 1);
+        } else {
+            feedback.innerHTML = "❌ Pas tout à fait... réessaie !";
+            feedback.style.color = "var(--error)";
+            feedback.style.display = "block";
+        }
+    }
+
+    function renderFullContent() {
+        sections.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = 'theory-section visible';
+
+            // Protect Math
+            const mathBlocks = [];
+            const protectedContent = s.replace(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g, (match) => {
+                const idx = mathBlocks.length;
+                mathBlocks.push(match);
+                return `<span class="math-px" data-idx="${idx}"></span>`;
+            });
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = marked.parse(protectedContent);
+
+            // Restore Math safely (No innerHTML roundtrip after restoration)
+            tempDiv.querySelectorAll('.math-px').forEach(span => {
+                const idx = span.getAttribute('data-idx');
+                const mathText = mathBlocks[idx];
+                span.replaceWith(document.createTextNode(mathText));
+            });
+
+            div.appendChild(tempDiv);
+            container.appendChild(div);
+
+            renderMathInElement(div, {
+                delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+                throwOnError: false
+            });
+            if (i < sections.length - 1) {
+                const hr = document.createElement('hr');
+                hr.style.margin = '3rem 0'; hr.style.opacity = '0.1';
+                container.appendChild(hr);
+            }
+        });
+        document.getElementById('final-footer').style.display = 'block';
+    }
+
+    async function finishStep() {
         try {
-            const response = await fetch('/submit', {
+            const response = await fetch('/submit_step', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId,
-                    course_id: courseData.id,
-                    answers: userAnswers
+                    step_id: stepData.id,
+                    answers: {}
                 })
             });
-
             const result = await response.json();
-
-            if (result.already_completed) {
-                alert("Vous avez déjà validé cet exercice.");
-                location.reload();
-                return;
-            }
-
-            // Show Feedback & Reload to lock state
-            for (const [exId, isCorrect] of Object.entries(result.results)) {
-                // Not really strictly needed if we reload, but good for immediate feedback if we didn't reload
-            }
-
             if (result.xp_gained > 0) {
-                confetti({
-                    particleCount: 150,
-                    spread: 80,
-                    origin: { y: 0.6 }
-                });
-
-                setTimeout(() => {
-                    location.reload(); // Reload to show locked state
-                }, 2000);
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                setTimeout(() => { window.location.href = `/subjects/{{ course.subject_id }}`; }, 2000);
             } else {
-                location.reload();
+                window.location.href = `/subjects/{{ course.subject_id }}`;
             }
-
-        } catch (error) {
-            console.error('Error submitting:', error);
-            alert('Erreur lors de la soumission');
+        } catch (e) {
+            console.error(e);
+            alert("Erreur lors de la validation");
         }
     }
 </script>
