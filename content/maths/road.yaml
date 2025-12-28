@@ -46,6 +46,26 @@ road:
         title: "Les Multiplications: Test"
       - type: practice_hard
         title: "Les Multiplications: Test"
+      - type: flash_table_1
+        title: "Table de 1"
+      - type: flash_table_2
+        title: "Table de 2"
+      - type: flash_table_3
+        title: "Table de 3"
+      - type: flash_table_4
+        title: "Table de 4"
+      - type: flash_table_5
+        title: "Table de 5"
+      - type: flash_table_6
+        title: "Table de 6"
+      - type: flash_table_7
+        title: "Table de 7"
+      - type: flash_table_8
+        title: "Table de 8"
+      - type: flash_table_9
+        title: "Table de 9"
+      - type: flash_table_10
+        title: "Table de 10"
 
   - id: divisions
     title: "Les Divisions"

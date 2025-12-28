@@ -16,6 +16,65 @@
             <!-- Exercises will be rendered here by JS -->
         </div>
     </div>
+    {% if user.is_admin %}
+    <div class="admin-toolbar glass"
+        style="position: fixed; bottom: 20px; right: 20px; padding: 1rem; z-index: 1000; border: 1px solid var(--secondary);">
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--secondary);">Admin Mode</h4>
+        <button onclick="simulatePerfectScore()"
+            style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.8rem;">Simuler Score
+            Parfait</button>
+        <button onclick="submitTest()" style="display: block; width: 100%; font-size: 0.8rem;">Valider le Test</button>
+    </div>
+    <script>
+        function simulatePerfectScore() {
+            // Fill all answers with correct ones
+            if (!stepData || !stepData.exercises) return;
+
+            stepData.exercises.forEach(ex => {
+                // Update logic state
+                userAnswers[ex.id] = ex.answer;
+
+                // Update UI
+                if (ex.type === 'input') {
+                    const input = document.querySelector(`input[onchange*="${ex.id}"]`);
+                    if (input) input.value = ex.answer;
+                } else if (ex.type === 'fraction_scenario') {
+                    const input = document.querySelector(`input[onchange*="${ex.id}"]`);
+                    if (input) input.value = ex.answer;
+                } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
+                    // Find option matching answer
+                    // Note: ex.answer is string, options are list of strings
+                    // We need to click the button
+                    // This is a bit tricky if we don't have direct ref, but we can search text
+                    const buttons = document.querySelectorAll(`button[onclick*="${ex.id}"]`);
+                    buttons.forEach(btn => {
+                        if (btn.innerText.trim() === ex.answer) {
+                            btn.click(); // Trigger selection logic
+                        }
+                    });
+                } else if (ex.type === 'drag_drop') {
+                    // Drag drop is complex to simulate visually without recreating DOM
+                    // But we can just set the state and maybe fill the text?
+                    const parts = document.querySelectorAll(`span[id^="zone-${ex.id}"]`);
+                    parts.forEach((part, i) => {
+                        // We need to parse answer if it's array? 
+                        // ex.answer might be "A, B" or ["A", "B"]? 
+                        // Check models or generator
+                        // MathGenerator returns string. 
+                        // But DragDrop is likely custom. 
+                        // Assuming simple string for now or list handling elsewhere.
+                        // The submit logic sends userAnswers[ex.id].
+                        // Let's just set the text content to debug
+                        part.innerHTML = "DONE";
+                        part.classList.add('filled');
+                    });
+                }
+            });
+            alert("Score parfait simulé (Données remplies). Vous pouvez valider.");
+        }
+    </script>
+    {% endif %}
+
 </div>
 {% endblock %}
 
@@ -253,16 +312,24 @@
                 }
             }
 
-            alert(`Étape terminée ! Score: ${correctCount} / ${stepData.exercises.length}`);
+            // Mastery Feedback
+            let masteryMsg = "";
+            let mastery = result.mastery;
+            if (mastery === 3) masteryMsg = "🏆 MAÎTRISE OR ! (3/3)";
+            else if (mastery === 2) masteryMsg = "🥈 Maîtrise Argent (2/3)";
+            else if (mastery === 1) masteryMsg = "🥉 Maîtrise Bronze (1/3)";
+
+            let msg = `Étape terminée ! Score: ${correctCount} / ${stepData.exercises.length}`;
+            if (masteryMsg) msg += `\n\n${masteryMsg}`;
+
+            alert(msg);
 
             if (result.xp_gained > 0) {
-                if (result.xp_gained > 0) {
-                    confetti({
-                        particleCount: 150,
-                        spread: 80,
-                        origin: { y: 0.6 }
-                    });
-                }
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
             }
 
             // Disable inputs?

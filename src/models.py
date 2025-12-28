@@ -44,6 +44,10 @@ class User(SQLModel, table=True):
     progress: List["SubjectProgress"] = Relationship(back_populates="user")
     step_progress: List["RoadStepProgress"] = Relationship(back_populates="user")
 
+    @property
+    def is_admin(self) -> bool:
+        return "_ADMIN" in self.username
+
 
 class SubjectProgress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -58,6 +62,7 @@ class RoadStepProgress(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id")
     step_id: str = Field(foreign_key="roadstep.id")
     is_completed: bool = Field(default=False)
+    mastery: int = Field(default=0) # 0 to 3
     answers: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     
     user: User = Relationship(back_populates="step_progress")

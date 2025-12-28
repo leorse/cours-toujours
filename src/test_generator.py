@@ -21,6 +21,12 @@ class TestGenerator:
             difficulty = "hard"
         elif "validation" in step_type:
             difficulty = "mix" # Un mélange pour la validation
+        elif step_type.startswith("flash_table_"):
+            try:
+                table_n = int(step_type.split("_")[-1])
+                return TestGenerator.generate_multiplication_table(table_n, count)
+            except:
+                pass
 
         # Dispatch vers le bon générateur
         if not gen_type:
@@ -49,6 +55,20 @@ class TestGenerator:
             "options": ["Réponse A", "Réponse B (Bonne)", "Réponse C"],
             "answer": "Réponse B (Bonne)"
         }
+
+    @staticmethod
+    def generate_multiplication_table(table: int, count: int = 20) -> List[Dict[str, Any]]:
+        exercises = []
+        for i in range(count):
+            # Pick a random number 1-10
+            b = random.randint(1, 10)
+            exercises.append({
+                "id": f"flash_mul_{table}_{b}_{random.randint(1000,9999)}",
+                "type": "input",
+                "question": f"Combien font ${table} \\times {b}$ ?",
+                "answer": str(table * b)
+            })
+        return exercises
 
     # -- Legacy methods (to be kept/refactored if still used by flash mode) --
     @staticmethod

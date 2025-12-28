@@ -39,6 +39,11 @@
                 <div class="user-avatar-small">{{ user.username[0].upper() }}</div>
                 <span>{{ user.username }} <small class="text-muted">(Lvl {{ (user.total_xp // 100) + 1
                         }})</small></span>
+                {% if user.is_admin %}
+                <span class="badge badge-admin" style="background: var(--error); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;">ADMIN</span>
+                <a href="/admin/validate_all" style="font-size: 0.8rem; color: var(--success); margin-left:1rem;">Tout Valider</a>
+                <a href="/admin/reset_all" style="font-size: 0.8rem; color: var(--error); margin-left:1rem;">Tout Reset</a>
+                {% endif %}
                 <a href="/logout" style="font-size: 0.8rem; color: var(--text-muted); margin-left:1rem;">Déconnexion</a>
             </div>
             {% endif %}

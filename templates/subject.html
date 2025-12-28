@@ -269,6 +269,45 @@
             box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
         }
     }
+
+    /* Mastery Styles */
+    .mastery-gold .node-point {
+        border-color: #f1c40f;
+        box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
+        animation: glow-gold 2s infinite;
+    }
+
+    @keyframes glow-gold {
+        0% {
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.4);
+        }
+
+        50% {
+            box-shadow: 0 0 25px rgba(241, 196, 15, 0.8);
+        }
+
+        100% {
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.4);
+        }
+    }
+
+    .mastery-ring {
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        width: 100%;
+        height: 100%;
+        /* Adjusted to fit around point */
+        width: calc(100% + 20px);
+        height: calc(100% + 20px);
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    .node-point {
+        position: relative;
+        /* Ensure context for absolute ring */
+    }
 </style>
 
 <div class="road-container" id="road-container">
@@ -288,33 +327,51 @@
     {% set pos_class = 'pos-right' %}
     {% endif %}
 
+    {# Mastery Logic #}
+    {% set mastery = mastery_map.get(step.id, 0) %}
+    {% set mastery_class = '' %}
+    {% if mastery >= 3 %}{% set mastery_class = 'mastery-gold' %}
+    {% elif mastery == 2 %}{% set mastery_class = 'mastery-silver' %}
+    {% elif mastery == 1 %}{% set mastery_class = 'mastery-bronze' %}
+    {% endif %}
+
     {# Split title: "Main : Sub" #}
     {% set title_parts = step.title.split(':') %}
     {% set main_title = title_parts[0]|trim %}
     {% set sub_title = title_parts[1]|trim if title_parts|length > 1 else "" %}
 
     <div class="road-node-wrapper {{ pos_class }}">
-        <a href="/step/{{ step.id }}" class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} 
+        <a href="/step/{{ step.id }}" class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} {{ mastery_class }}
             {% if step.type == 'theory' %}node-theory
             {% elif step.type == 'validation' %}node-validation
             {% else %}node-practice{% endif %}" title="{{ step.title }}">
 
             <div class="node-point">
-                {% if is_completed %}
-                ✅
-                {% elif step.type == 'theory' %}
-                📖
-                {% elif step.type == 'validation' %}
-                🎓
-                {% elif 'simple' in step.type %}
-                ⭐
-                {% elif 'medium' in step.type %}
-                ⭐⭐
-                {% elif 'hard' in step.type %}
-                ⭐⭐⭐
-                {% else %}
-                🎯
-                {% endif %}
+                {# Ring for Mastery #}
+                {% if mastery > 0 and mastery < 3 %} <svg class="mastery-ring" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="46" fill="transparent" stroke="rgba(255,255,255,0.2)" stroke-width="8" />
+                    <circle cx="50" cy="50" r="46" fill="transparent" stroke="#f1c40f" stroke-width="8"
+                        stroke-dasharray="{{ mastery * 33.3 }} 100" stroke-dashoffset="0"
+                        transform="rotate(-90 50 50)" />
+                    </svg>
+                    {% endif %}
+
+                    {% if is_completed %}
+                    {% if mastery >= 3 %}🏆
+                    {% else %}✅{% endif %}
+                    {% elif step.type == 'theory' %}
+                    📖
+                    {% elif step.type == 'validation' %}
+                    🎓
+                    {% elif 'simple' in step.type %}
+                    ⭐
+                    {% elif 'medium' in step.type %}
+                    ⭐⭐
+                    {% elif 'hard' in step.type %}
+                    ⭐⭐⭐
+                    {% else %}
+                    🎯
+                    {% endif %}
             </div>
 
             <div class="sign-group">

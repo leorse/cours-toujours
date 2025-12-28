@@ -138,18 +138,48 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
     ).all()
     
     # Calculate completed steps
-    completed_entries = session.exec(select(RoadStepProgress).where(
-        RoadStepProgress.user_id == user.id, 
-        RoadStepProgress.is_completed == True
-    )).all()
+    completed_entries = []
+    try:
+        completed_entries = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == user.id, 
+            RoadStepProgress.is_completed == True
+        )).all()
+        # Also fetch mastery for all steps (even if not 'completed' per se, though logic ties them)
+        # Actually let's fetch all progress for this subject's steps to map mastery
+        # But for now, sticking to existing pattern
+        
+        # We need to pass mastery info to template
+        # Let's create a map: step_id -> mastery_level
+        
+        all_progress = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == user.id
+        )).all()
+        
+        mastery_map = {p.step_id: p.mastery for p in all_progress}
+        
+    except Exception as e:
+        print(f"ERROR fetching progress: {e}")
+        mastery_map = {}
+        
     completed_steps = [p.step_id for p in completed_entries]
+    
+    # Validation of data integrity
+    valid_steps = []
+    for s in steps:
+        if s.id and s.type:
+             valid_steps.append(s)
+        else:
+             print(f"Skipping invalid step: {s}")
+             
+    steps = valid_steps
     
     return templates.TemplateResponse("subject.html", {
         "request": request,
         "user": user,
         "subject": subject,
         "steps": steps,
-        "completed_steps": completed_steps
+        "completed_steps": completed_steps,
+        "mastery_map": mastery_map
     })
 
 @app.get("/step/{step_id}", response_class=HTMLResponse)
@@ -164,7 +194,7 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     course = step.course
     
     # Progression check: is the previous step completed?
-    if step.order > 0:
+    if step.order > 0 and not user.is_admin:
         prev_step = session.exec(select(RoadStep).where(
             RoadStep.subject_id == step.subject_id,
             RoadStep.order == step.order - 1
@@ -197,9 +227,18 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     else:
         # Render exercise page (test.html style)
         # Generate exercises based on step type
-        count = 5 if step.type == "validation" else 10
+        count = 20 if step.type == "validation" else 10
         exercises = TestGenerator.generate_step_exercises(course, step.type, count=count)
         
+        if step.type.startswith("flash"):
+            return templates.TemplateResponse("flash.html", {
+                "request": request,
+                "user": user,
+                "step": step,
+                "course": course,
+                "exercises": exercises
+            })
+
         # We reuse test.html or similar
         return templates.TemplateResponse("test.html", {
             "request": request,
@@ -264,6 +303,7 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
 
     xp_gained = 0
     results = {}
+    first_time = False
 
     for exercise in submission.generated_exercises:
         ex_id = exercise.get("id")
@@ -275,39 +315,93 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         if is_correct:
             xp_gained += 10
 
-    # Mark step as completed if at least some effort? Or always?
-    # Let's say it's completed if they submit (they can retry but stay completed)
-    progress = session.exec(select(RoadStepProgress).where(
-        RoadStepProgress.user_id == user.id,
-        RoadStepProgress.step_id == step.id
-    )).first()
-
-    first_time = False
-    if not progress:
-        progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True, answers=submission.answers)
-        session.add(progress)
-        first_time = True
-    else:
-        if not progress.is_completed:
-            progress.is_completed = True
+    # Calculate Mastery for Flash Steps OR Validation Steps
+    # User wants mastery tiers for "tests" (validation) and "flash".
+    if step.type.startswith("flash") or step.type == "validation":
+        total_questions = len(submission.generated_exercises)
+        score = sum(1 for r in results.values() if r["correct"])
+        
+        progress = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == user.id,
+            RoadStepProgress.step_id == step.id
+        )).first()
+        
+        if not progress:
+            progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=False, mastery=0)
+            session.add(progress)
             first_time = True
+            
+        current_mastery = progress.mastery
+        
+        if score == total_questions:
+            # Streak +1 (Max 3)
+            current_mastery = min(3, current_mastery + 1)
+        else:
+            # Any error -> Drop by 1 (Min 0)
+             current_mastery = max(0, current_mastery - 1)
+            
+        progress.mastery = current_mastery
+        
+        # Mark completed logic (e.g. > 50%)
+        # For validation, maybe we want strict 50%? kept same.
+        if score >= total_questions / 2:
+            if not progress.is_completed:
+                 progress.is_completed = True
+                 first_time = True
+        
         progress.answers = submission.answers
         session.add(progress)
+    
+    else:
+        # Standard logic (Practice, etc.) - No Mastery tracking requested yet, or simple.
+        # Keeping simple completion for practice.
+        nb_correct = len([r for r in results.values() if r["correct"]])
+         
+        if len(submission.generated_exercises) > 0 and nb_correct >= len(submission.generated_exercises) / 2:
+            progress = session.exec(select(RoadStepProgress).where(
+                RoadStepProgress.user_id == user.id, 
+                RoadStepProgress.step_id == step.id
+            )).first()
+            
+            if not progress:
+                progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True)
+                session.add(progress)
+                first_time = True
+            else:
+                if not progress.is_completed:
+                    progress.is_completed = True
+                    first_time = True
+                session.add(progress)
+            
+            # Update answers
+            if progress:
+                progress.answers = submission.answers
+                session.add(progress)
 
+    # Award XP if first time completed (or first time played handling above)
     if first_time and xp_gained > 0:
         user.total_xp += xp_gained
         session.add(user)
+        
         sub_prog = session.exec(select(SubjectProgress).where(
             SubjectProgress.user_id == user.id,
             SubjectProgress.subject_id == step.subject_id
         )).first()
+        
         if not sub_prog:
             sub_prog = SubjectProgress(user_id=user.id, subject_id=step.subject_id, score=0)
+            session.add(sub_prog)
+            
         sub_prog.score += xp_gained
         session.add(sub_prog)
 
     session.commit()
-    return {"xp_gained": xp_gained if first_time else 0, "results": results, "total_xp": user.total_xp}
+    return {
+        "xp_gained": xp_gained if first_time else 0, 
+        "results": results, 
+        "total_xp": user.total_xp,
+        "mastery": progress.mastery if progress else 0
+    }
 
 @app.get("/flash/{subject_id}", response_class=HTMLResponse)
 def flash_page(subject_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -345,3 +439,74 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
         "step": flash_step,
         "exercises": exercises
     })
+
+# --- Admin Routes ---
+
+@app.get("/admin/reset_all")
+def admin_reset_all(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or not user.is_admin:
+         return RedirectResponse(url="/")
+    
+    # Delete all progress
+    session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id))
+    # sqlmodel delete is a bit manual or needs execute
+    # simpler: select and delete
+    sub_progs = session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id)).all()
+    for sp in sub_progs:
+        session.delete(sp)
+        
+    step_progs = session.exec(select(RoadStepProgress).where(RoadStepProgress.user_id == user.id)).all()
+    for sp in step_progs:
+        session.delete(sp)
+    
+    user.total_xp = 0
+    session.add(user)
+    session.commit()
+    
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+@app.get("/admin/validate_all")
+def admin_validate_all(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or not user.is_admin:
+         return RedirectResponse(url="/")
+         
+    # Mark all steps as completed
+    all_steps = session.exec(select(RoadStep)).all()
+    
+    # Needs to update SubjectProgress too? Maybe just marking steps is enough visual feedback normally, 
+    # but for "all done" we probably want 100% everywhere.
+    
+    for step in all_steps:
+        # Check if already exists
+        prog = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == user.id,
+            RoadStepProgress.step_id == step.id
+        )).first()
+        
+        if not prog:
+            prog = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True)
+            session.add(prog)
+        elif not prog.is_completed:
+            prog.is_completed = True
+            session.add(prog)
+            
+    # Naive Subject Progress update (just set to something high or iterate properly)
+    # Let's just create progress entries for all subjects if missing
+    all_subjects = session.exec(select(Subject)).all()
+    for sub in all_subjects:
+         sub_prog = session.exec(select(SubjectProgress).where(
+            SubjectProgress.user_id == user.id,
+            SubjectProgress.subject_id == sub.id
+        )).first()
+         if not sub_prog:
+             sub_prog = SubjectProgress(user_id=user.id, subject_id=sub.id, score=9999)
+             session.add(sub_prog)
+         else:
+             sub_prog.score = 9999
+             session.add(sub_prog)
+             
+    user.total_xp = 99999
+    session.add(user)
+    
+    session.commit()
+    return RedirectResponse(url="/dashboard", status_code=303)
