@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ subject.name }} - LearnFlow{% endblock %}
+{% block title %}{{ subject.name }} - Cours Toujours! {% endblock %}
 
 {% block content %}
 <header style="margin-bottom: 3rem; display: flex; align-items: center; gap: 1rem;">
@@ -16,37 +16,40 @@
         position: relative;
         max-width: 600px;
         margin: 0 auto;
-        padding: 4rem 2rem;
+        padding: 4rem 1rem;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4rem;
+        gap: 6rem;
+        /* Plus d'espace entre les points pour mieux voir la route */
     }
 
-    /* Le trait de la route */
-    .road-line {
+    /* SVG Road */
+    .road-svg {
         position: absolute;
         top: 0;
-        bottom: 0;
-        width: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
         z-index: 0;
-        left: 50%;
-        transform: translateX(-50%);
     }
 
-    /* Le trait animé qui monte ou descend ? Non, statique avec effet de lueur */
-    .road-line-glow {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 8px;
-        background: linear-gradient(to bottom, var(--secondary), var(--primary));
-        opacity: 0.3;
-        filter: blur(4px);
-        left: 50%;
-        transform: translateX(-50%);
+    .road-path-asphalt {
+        fill: none;
+        stroke: #2c3e50;
+        stroke-width: 40;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .road-path-line {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.5);
+        stroke-width: 4;
+        stroke-dasharray: 12 12;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
     .road-node-wrapper {
@@ -57,23 +60,21 @@
         justify-content: center;
     }
 
-    /* Zig-zag : Alterner gauche / centre / droite */
-    .road-node-wrapper:nth-child(4n+1) {
+    /* Zig-zag : Alterner gauche (-25%) / centre (0) / droite (25%) */
+    /* On utilise des classes spécifiques pour que le JS puisse calculer les points */
+    .road-node-wrapper.pos-left {
         justify-content: center;
+        transform: translateX(-25%);
     }
 
-    .road-node-wrapper:nth-child(4n+2) {
-        justify-content: flex-start;
-        padding-left: 15%;
-    }
-
-    .road-node-wrapper:nth-child(4n+3) {
+    .road-node-wrapper.pos-center {
         justify-content: center;
+        transform: translateX(0);
     }
 
-    .road-node-wrapper:nth-child(4n+4) {
-        justify-content: flex-end;
-        padding-right: 15%;
+    .road-node-wrapper.pos-right {
+        justify-content: center;
+        transform: translateX(25%);
     }
 
     .road-node {
@@ -93,49 +94,136 @@
         height: 60px;
         border-radius: 50%;
         background: var(--glass-bg);
-        border: 4px solid var(--glass-border);
+        border: 4px solid #444;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
         color: white;
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         transition: all 0.3s ease;
         position: relative;
     }
 
-    /* Point pour la théorie (Gros point) */
+    /* Point pour la théorie */
     .node-theory .node-point {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Point pour la validation */
+    .node-validation .node-point {
         width: 80px;
         height: 80px;
-        background: linear-gradient(135deg, var(--primary), #8e44ad);
+        background: linear-gradient(135deg, #e67e22, #d35400);
         border-color: rgba(255, 255, 255, 0.3);
     }
 
-    /* Point pour la pratique (Petit point) */
+    /* Point pour la pratique */
     .node-practice .node-point {
-        width: 50px;
-        height: 50px;
-        background: var(--glass-bg);
+        width: 55px;
+        height: 55px;
+        background: #34495e;
+        border-color: rgba(255, 255, 255, 0.1);
     }
 
-    .node-title {
-        margin-top: 0.8rem;
+    .sign-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        margin-top: 1rem;
+        position: relative;
+    }
+
+    .road-sign {
         font-weight: 600;
-        font-size: 0.9rem;
-        color: var(--text-primary);
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        background: rgba(0, 0, 0, 0.3);
-        padding: 0.2rem 0.6rem;
-        border-radius: 12px;
-        white-space: nowrap;
+        font-size: 0.7rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 2px;
+        white-space: normal;
+        text-align: center;
+        width: 140px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+        transition: transform 0.2s ease;
     }
 
-    /* États */
+    /* Motorway Style (Theory) */
+    .node-theory .road-sign {
+        background-color: #0055A4;
+        color: white;
+        border: 2px solid white;
+    }
+
+    /* Standard Style (Others) */
+    .node-practice .road-sign,
+    .node-validation .road-sign {
+        background-color: #ffffff;
+        color: #333;
+        border: 2px solid #333;
+    }
+
+    /* Difficulty Badge (A23 style) */
+    .difficulty-badge {
+        position: absolute;
+        top: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: white;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        z-index: 2;
+        text-shadow: none;
+        min-width: 25px;
+        height: 12px;
+        text-align: center;
+    }
+
+    .badge-simple {
+        background-color: #27ae60;
+    }
+
+    /* Green */
+    .badge-medium {
+        background-color: #e67e22;
+    }
+
+    /* Orange */
+    .badge-hard {
+        background-color: #c0392b;
+    }
+
+    /* Red */
+
+    /* The "Stick" below the signs */
+    .sign-group::before {
+        content: '';
+        position: absolute;
+        top: -1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 100%;
+        min-height: 3rem;
+        background: #555;
+        z-index: -1;
+    }
+
+    /* States */
     .node-done .node-point {
-        background: var(--success) !important;
+        background: #27ae60 !important;
         border-color: rgba(255, 255, 255, 0.5);
     }
+
 
     .node-locked {
         opacity: 0.5;
@@ -183,24 +271,41 @@
     }
 </style>
 
-<div class="road-container">
-    <div class="road-line"></div>
-    <div class="road-line-glow"></div>
+<div class="road-container" id="road-container">
+    <svg class="road-svg">
+        <path id="road-asphalt" class="road-path-asphalt" d="" />
+        <path id="road-line" class="road-path-line" d="" />
+    </svg>
 
     {% for step in steps %}
     {% set is_completed = step.id in completed_steps %}
     {% set is_unlocked = loop.first or (steps[loop.index0 - 1].id in completed_steps) %}
 
-    <div class="road-node-wrapper">
-        <a href="/step/{{ step.id }}"
-            class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} {% if step.type == 'theory' %}node-theory{% else %}node-practice{% endif %}"
-            title="{{ step.title }}">
+    {% set pos_class = 'pos-center' %}
+    {% if loop.index0 % 4 == 1 %}
+    {% set pos_class = 'pos-left' %}
+    {% elif loop.index0 % 4 == 3 %}
+    {% set pos_class = 'pos-right' %}
+    {% endif %}
+
+    {# Split title: "Main : Sub" #}
+    {% set title_parts = step.title.split(':') %}
+    {% set main_title = title_parts[0]|trim %}
+    {% set sub_title = title_parts[1]|trim if title_parts|length > 1 else "" %}
+
+    <div class="road-node-wrapper {{ pos_class }}">
+        <a href="/step/{{ step.id }}" class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} 
+            {% if step.type == 'theory' %}node-theory
+            {% elif step.type == 'validation' %}node-validation
+            {% else %}node-practice{% endif %}" title="{{ step.title }}">
 
             <div class="node-point">
                 {% if is_completed %}
                 ✅
                 {% elif step.type == 'theory' %}
                 📖
+                {% elif step.type == 'validation' %}
+                🎓
                 {% elif 'simple' in step.type %}
                 ⭐
                 {% elif 'medium' in step.type %}
@@ -212,9 +317,65 @@
                 {% endif %}
             </div>
 
-            <div class="node-title">{{ step.title }}</div>
+            <div class="sign-group">
+                {% if 'simple' in step.type %}
+                <div class="difficulty-badge badge-simple"></div>
+                {% elif 'medium' in step.type %}
+                <div class="difficulty-badge badge-medium"></div>
+                {% elif 'hard' in step.type %}
+                <div class="difficulty-badge badge-hard"></div>
+                {% endif %}
+
+                <div class="road-sign sign-main">{{ main_title }}</div>
+                {% if sub_title %}
+                <div class="road-sign sign-sub">{{ sub_title }}</div>
+                {% endif %}
+            </div>
         </a>
     </div>
     {% endfor %}
 </div>
+
+<script>
+    function updateRoadPath() {
+        const container = document.getElementById('road-container');
+        const nodes = container.querySelectorAll('.road-node');
+        const asphaltPath = document.getElementById('road-asphalt');
+        const linePath = document.getElementById('road-line');
+
+        if (nodes.length === 0) return;
+
+        let pathD = "";
+
+        nodes.forEach((node, index) => {
+            const rect = node.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            // On calcule le centre du point par rapport au container
+            const x = rect.left + rect.width / 2 - containerRect.left;
+            const y = rect.top + (node.querySelector('.node-point').offsetHeight / 2) - containerRect.top;
+
+            if (index === 0) {
+                pathD += `M ${x} ${y}`;
+            } else {
+                // On peut faire des courbes de Bézier pour un rendu plus organique
+                const prevRect = nodes[index - 1].getBoundingClientRect();
+                const prevX = prevRect.left + prevRect.width / 2 - containerRect.left;
+                const prevY = prevRect.top + (nodes[index - 1].querySelector('.node-point').offsetHeight / 2) - containerRect.top;
+
+                const cpY = (prevY + y) / 2;
+                pathD += ` C ${prevX} ${cpY}, ${x} ${cpY}, ${x} ${y}`;
+            }
+        });
+
+        asphaltPath.setAttribute('d', pathD);
+        linePath.setAttribute('d', pathD);
+    }
+
+    // Appeler après le chargement et redimensionnement
+    window.addEventListener('load', updateRoadPath);
+    window.addEventListener('resize', updateRoadPath);
+    // On rappelle un peu après au cas où des polices ou images se chargent
+    setTimeout(updateRoadPath, 100);
+</script>
 {% endblock %}

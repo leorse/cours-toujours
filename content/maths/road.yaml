@@ -5,15 +5,15 @@ road:
     theory_file: calculs/additions.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Additions: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Additions: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Additions: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Additions: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Additions: Test"
 
   - id: soustractions
     title: "Les Soustractions"
@@ -21,15 +21,15 @@ road:
     theory_file: calculs/soustractions.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Soustractions: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Soustractions: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Soustractions: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Soustractions: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Soustractions: Test"
 
   - id: multiplications
     title: "Les Multiplications"
@@ -37,15 +37,15 @@ road:
     theory_file: calculs/multiplications.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Multiplications: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Multiplications: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Multiplications: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Multiplications: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Multiplications: Test"
 
   - id: divisions
     title: "Les Divisions"
@@ -53,15 +53,15 @@ road:
     theory_file: calculs/divisions.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Divisions: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Divisions: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Divisions: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Divisions: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Divisions: Test"
 
   - id: fractions
     title: "Découvrir les Fractions"
@@ -69,15 +69,15 @@ road:
     theory_file: fractions/fractions.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Fractions: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Fractions: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Fractions: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Fractions: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Fractions: Test"
 
   - id: fractions_addition
     title: "Addition de Fractions"
@@ -85,15 +85,15 @@ road:
     theory_file: fractions/fractions_addition.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Fractions: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Fractions: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Fractions: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Fractions: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Fractions: Test"
 
   - id: relatifs_mult
     title: "Multiplication de Relatifs"
@@ -101,12 +101,12 @@ road:
     theory_file: nombres_relatifs/nombres_relatif_multiplications.md
     steps:
       - type: theory
-        title: "La Théorie"
+        title: "Les Relatifs: La Théorie"
       - type: validation
-        title: "Validation"
+        title: "Les Relatifs: Validation"
       - type: practice_simple
-        title: "S'entraîner (Facile)"
+        title: "Les Relatifs: Test"
       - type: practice_medium
-        title: "S'entraîner (Moyen)"
+        title: "Les Relatifs: Test"
       - type: practice_hard
-        title: "S'entraîner (Difficile)"
+        title: "Les Relatifs: Test"
