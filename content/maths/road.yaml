@@ -40,12 +40,6 @@ road:
         title: "Les Multiplications: La Théorie"
       - type: validation
         title: "Les Multiplications: Validation"
-      - type: practice_simple
-        title: "Les Multiplications: Test"
-      - type: practice_medium
-        title: "Les Multiplications: Test"
-      - type: practice_hard
-        title: "Les Multiplications: Test"
       - type: flash_table_1
         title: "Table de 1"
       - type: flash_table_2
@@ -66,7 +60,13 @@ road:
         title: "Table de 9"
       - type: flash_table_10
         title: "Table de 10"
-
+      - type: practice_simple
+        title: "Les Multiplications: Test"
+      - type: practice_medium
+        title: "Les Multiplications: Test"
+      - type: practice_hard
+        title: "Les Multiplications: Test"
+      
   - id: divisions
     title: "Les Divisions"
     generator: division
