@@ -18,6 +18,7 @@ class Course(SQLModel, table=True):
     
     # Stockage des exercices statiques (extraits du markdown)
     exercises: List[dict] = Field(default=[], sa_column=Column(JSON))
+    session_config: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     
     subject_id: str = Field(foreign_key="subject.id")
     subject: Subject = Relationship(back_populates="courses")
@@ -66,6 +67,18 @@ class RoadStepProgress(SQLModel, table=True):
     answers: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     
     user: User = Relationship(back_populates="step_progress")
+
+class ExerciseLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    # hierarchical tag: "math:calcul:addition"
+    tag: str = Field(index=True)
+    question_id: str
+    is_correct: bool
+    timestamp: float 
+    
+    # Optional: store full context if needed
+    difficulty: str
 
 
 # --- Schémas API ---

@@ -11,6 +11,9 @@ from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, Ro
 from src.content_loader import sync_content
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
+from src.models import ExerciseLog
+from src.generators import ExerciseFactory
+import time
 
 def smart_compare(user_val, correct_val):
     """
@@ -227,8 +230,22 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     else:
         # Render exercise page (test.html style)
         # Generate exercises based on step type
-        count = 20 if step.type == "validation" else 10
-        exercises = TestGenerator.generate_step_exercises(course, step.type, count=count)
+
+
+        # --- NEW GENERATOR LOGIC ---
+        # Check if we have a session recipe in the course or if the step overrides it
+        # For now, we rely on the course having a session_config loaded from road.yaml/content.md
+        
+        exercises = []
+        if course.session_config and "generators" in course.session_config:
+             # Use the new Factory
+             recipe = course.session_config["generators"]
+             total_count = course.session_config.get("count", 10)
+             exercises = ExerciseFactory.create_exercises(recipe, total_count)
+        else:
+             # Fallback to old generator
+             count = 20 if step.type == "validation" else 10
+             exercises = TestGenerator.generate_step_exercises(course, step.type, count=count)
         
         if step.type.startswith("flash"):
             return templates.TemplateResponse("flash.html", {
@@ -312,6 +329,24 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         
         is_correct = smart_compare(user_val, correct_val)
         results[ex_id] = { "correct": is_correct, "correct_answer": correct_val }
+        
+        # --- LOGGING ---
+        try:
+             # Extract tag if present
+             tag = exercise.get("tag", "unknown")
+             
+             log_entry = ExerciseLog(
+                 user_id=user.id,
+                 tag=tag,
+                 question_id=ex_id,
+                 is_correct=is_correct,
+                 timestamp=time.time(),
+                 difficulty=exercise.get("meta", {}).get("difficulty", "unknown") 
+             )
+             session.add(log_entry)
+        except Exception as e:
+            print(f"Logging error: {e}")
+
         if is_correct:
             xp_gained += 10
 

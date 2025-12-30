@@ -67,8 +67,10 @@ def sync_content():
                                 post = frontmatter.load(tf)
                                 content = post.content
                                 exercises = post.get("exercises", [])
+                                session_config = post.get("session", {})
                         else:
                             print(f"⚠️ Fichier théorie manquant: {full_theory_path}")
+                            session_config = {}
 
                     # Upsert du cours
                     course = session.get(Course, course_id)
@@ -79,6 +81,7 @@ def sync_content():
                             content_markdown=content,
                             generator_type=generator,
                             exercises=exercises,
+                            session_config=session_config,
                             subject_id=subject.id
                         )
                     else:
@@ -86,6 +89,7 @@ def sync_content():
                         course.content_markdown = content
                         course.generator_type = generator
                         course.exercises = exercises
+                        course.session_config = session_config
                     
                     session.add(course)
                     session.flush() # Pour avoir l'ID si nécessaire

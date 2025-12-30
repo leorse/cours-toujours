@@ -1,4 +1,14 @@
 road:
+  - id: demo_mix
+    title: "Démonstration Modulaire"
+    generator: generic # Will use session config
+    theory_file: demo_mix.md
+    steps:
+      - type: theory
+        title: "Introduction"
+      - type: practice_mix
+        title: "Mix d'Exercices"
+
   - id: additions
     title: "Les Additions"
     generator: addition

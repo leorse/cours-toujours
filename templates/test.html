@@ -80,6 +80,7 @@
 
 {% block scripts %}
 <script src="/static/js/fraction_renderer.js"></script>
+<script src="/static/js/blueprint_renderer.js"></script>
 <script>
     // Pass the GENERATED exercises here, not the course.exercises directly
     const stepData = {
@@ -162,7 +163,20 @@
                     }
                 }, 100);
             } else if (ex.type === 'input') {
+                // Check if we have a blueprint in metadata
+                let blueprintHtml = '';
+                if (ex.meta && ex.meta.visual_blueprint) {
+                    const vid = `blueprint-${ex.id}`;
+                    blueprintHtml = `<div id="${vid}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 400px; text-align:center;"></div>`;
+                    setTimeout(() => {
+                        if (window.BlueprintRenderer) {
+                            BlueprintRenderer.render(vid, ex.meta.visual_blueprint);
+                        }
+                    }, 100);
+                }
+
                 contentHtml = `
+                    ${blueprintHtml}
                     <p style="margin-bottom: 1.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
                     <input type="text" placeholder="Votre réponse" 
                         onchange="saveInput(this, '${ex.id}')" 
