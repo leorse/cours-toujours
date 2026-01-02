@@ -11,8 +11,10 @@ from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, Ro
 from src.content_loader import sync_content
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
-from src.models import ExerciseLog
+from src.models import ExerciseLog, Exercise
 from src.generators import ExerciseFactory
+import re
+import os
 import time
 
 def smart_compare(user_val, correct_val):
@@ -194,8 +196,6 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     
-    course = step.course
-    
     # Progression check: is the previous step completed?
     if step.order > 0 and not user.is_admin:
         prev_step = session.exec(select(RoadStep).where(
@@ -209,59 +209,92 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
                 RoadStepProgress.is_completed == True
             )).first()
             if not progress:
-                # Optional: redirection if not unlocked
-                # return RedirectResponse(url=f"/subjects/{step.subject_id}?locked={step_id}")
                 pass
 
-    if step.type == "theory":
+    if step.type == "theory" or (step.type == "cours" and step.page_file):
         # Render theory page (unit.html style but with step context)
         progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id,
             RoadStepProgress.step_id == step_id
         )).first()
         
+        # Charger le markdown
+        content = ""
+        exercises = []
+        if step.page_file:
+            subject_path = os.path.join("content", step.subject_id)
+            page_path = os.path.join(subject_path, step.page_file)
+            if os.path.exists(page_path):
+                with open(page_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    
+                    # Parser les exercices &&id&&
+                    # On va transformer "&&id&&" en "&&&" pour le split progressif du frontend
+                    # et extraire les données de l'exercice
+                    def replace_exo(match):
+                        ex_id = match.group(1)
+                        ex = session.get(Exercise, ex_id)
+                        if ex:
+                            exercises.append(ex.data)
+                        else:
+                            exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé"})
+                        return "&&&" # Séparateur pour unit.html
+                    
+                    content = re.sub(r"&&(.+?)&&", replace_exo, content)
+        
+        # On crée un faux objet course pour unit.html qui attend course.content_markdown
+        dummy_course = {
+            "title": step.title,
+            "subject_id": step.subject_id,
+            "content_markdown": content,
+            "exercises": exercises
+        }
+        
         return templates.TemplateResponse("unit.html", {
             "request": request,
             "user": user,
             "step": step,
-            "course": course,
+            "course": dummy_course,
             "user_progress": progress
         })
     else:
         # Render exercise page (test.html style)
-        # Generate exercises based on step type
-
-
-        # --- NEW GENERATOR LOGIC ---
-        # Check if we have a session recipe in the course or if the step overrides it
-        # For now, we rely on the course having a session_config loaded from road.yaml/content.md
-        
         exercises = []
-        if course.session_config and "generators" in course.session_config:
-             # Use the new Factory
-             recipe = course.session_config["generators"]
-             total_count = course.session_config.get("count", 10)
-             exercises = ExerciseFactory.create_exercises(recipe, total_count)
-        else:
-             # Fallback to old generator
-             count = 20 if step.type == "validation" else 10
-             exercises = TestGenerator.generate_step_exercises(course, step.type, count=count)
         
-        if step.type.startswith("flash"):
+        if step.ref_id:
+            # Exercice direct référencé par son ID
+            ex = session.get(Exercise, step.ref_id)
+            if ex:
+                # Si c'est un générateur d'exercices (mode page/flash)
+                if ex.data.get("mode") in ["page", "flash"]:
+                    recipe = ex.data.get("generators", [])
+                    total_count = ex.data.get("count", 10)
+                    exercises = ExerciseFactory.create_exercises(recipe, total_count)
+                else:
+                    # C'est un exercice statique direct
+                    exercises = [ex.data]
+        
+        # Fallback pour les anciens générateurs si rien n'est trouvé
+        if not exercises:
+             count = 20 if step.type == "validation" else 10
+             # Note: TestGenerator attend un objet Course, on lui en donne un minimal
+             dummy_course = type('obj', (object,), {'generator_type': 'multiplication'})
+             exercises = TestGenerator.generate_step_exercises(dummy_course, step.type, count=count)
+        
+        if step.type == "flash":
             return templates.TemplateResponse("flash.html", {
                 "request": request,
                 "user": user,
                 "step": step,
-                "course": course,
+                "course": {"title": step.title, "subject_id": step.subject_id},
                 "exercises": exercises
             })
 
-        # We reuse test.html or similar
         return templates.TemplateResponse("test.html", {
             "request": request,
             "user": user,
             "step": step,
-            "course": course,
+            "course": {"title": step.title, "subject_id": step.subject_id},
             "exercises": exercises
         })
 

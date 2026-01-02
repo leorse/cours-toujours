@@ -24,17 +24,26 @@ class Course(SQLModel, table=True):
     subject: Subject = Relationship(back_populates="courses")
     road_steps: List["RoadStep"] = Relationship(back_populates="course")
 
+class Exercise(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    subject_id: str = Field(foreign_key="subject.id")
+    data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+
 class RoadStep(SQLModel, table=True):
     id: str = Field(primary_key=True) # course_id_theory, course_id_simple, etc.
     title: str
-    type: str # theory, validation, practice_simple, practice_medium, practice_hard
+    subtitle: Optional[str] = None
+    type: str # theory, validation, practice_simple, practice_medium, practice_hard, flash, page
     order: int # Global order on the road
     
-    course_id: str = Field(foreign_key="course.id")
+    ref_id: Optional[str] = None # ID of the exercise if type is exercise-direct
+    page_file: Optional[str] = None # Filename of the markdown page if type is theory
+    
+    course_id: Optional[str] = Field(default=None, foreign_key="course.id")
     subject_id: str = Field(foreign_key="subject.id")
     
-    course: Course = Relationship(back_populates="road_steps")
-    subject: Subject = Relationship(back_populates="road_steps")
+    course: Optional["Course"] = Relationship(back_populates="road_steps")
+    subject: "Subject" = Relationship(back_populates="road_steps")
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -7,10 +7,10 @@
     <!-- Course Content -->
     <div class="glass glass-panel content-area animate-fade-in">
         <header style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 2rem;">
-            <a href="/subjects/{{ course.subject_id }}"
+            <a href="/subjects/{{ step.subject_id }}"
                 style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Retour à la route</a>
             <h1 style="margin-top: 0.5rem;">{{ step.title }}</h1>
-            <p style="color: var(--secondary); font-size: 0.9rem;">Cours : {{ course.title }}</p>
+            <p style="color: var(--secondary); font-size: 0.9rem;">{{ step.subtitle if step.subtitle else "" }}</p>
         </header>
 
         <!-- Dynamic Content Container -->
@@ -227,6 +227,23 @@
                         <div class="draggable-item" draggable="true" ondragstart="onDragStart(event, '${opt.replace(/'/g, "\\'")}')">${opt}</div>
                     `).join('')}
                 </div>
+            `;
+        } else if (ex.type === 'fraction_scenario') {
+            const cId = `visual-${index}`;
+            contentDiv.innerHTML = `
+                <div id="${cId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 300px; height: 300px;"></div>
+                <p style="margin-bottom: 1rem; font-size: 1.1rem;">${ex.question}</p>
+                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="answers[${index}] = this.value">
+            `;
+            setTimeout(() => {
+                if (window.FractionRenderer) {
+                    FractionRenderer.render(cId, ex);
+                }
+            }, 100);
+        } else if (ex.type === 'input') {
+            contentDiv.innerHTML = `
+                <p style="margin-bottom: 1rem; font-size: 1.1rem;">${ex.question || ex.template}</p>
+                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="answers[${index}] = this.value">
             `;
         } else {
             contentDiv.innerHTML = `<p>${ex.question || ex.template}</p><p class="text-muted">(Exercice non supporté en ligne pour le moment)</p>`;

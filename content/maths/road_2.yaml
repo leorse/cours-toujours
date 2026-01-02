@@ -1,0 +1,21 @@
+road:
+  - id: test_exos
+    title: "Test"
+    subtitle: "Exos 1"
+    type: "cours"
+    page: "test_exos.md"
+  - id: test_exos2
+    title: "Test"
+    subtitle: "Exos 2"
+    type: "cours"
+    page: "nombres_relatifs/arthimetique_relatif.md"
+  - id: test_exos3
+    title: "Test"
+    subtitle: "Exos 3"
+    type: "page"
+    ref_id: "mul_page_02"
+  - id: test_exos4
+    title: "Test"
+    subtitle: "Exos 4"
+    type: "flash"
+    ref_id: "mul_flash_01"
