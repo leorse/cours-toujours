@@ -318,7 +318,7 @@
 
     {% for step in steps %}
     {% set is_completed = step.id in completed_steps %}
-    {% set is_unlocked = loop.first or (steps[loop.index0 - 1].id in completed_steps) %}
+    {% set is_unlocked = loop.first or step.activated or (steps[loop.index0 - 1].id in completed_steps) %}
 
     {% set pos_class = 'pos-center' %}
     {% if loop.index0 % 4 == 1 %}
@@ -339,7 +339,7 @@
     {% set main_title = step.title %}
     {% set sub_title = step.subtitle %}
 
-    <div class="road-node-wrapper {{ pos_class }}">
+    <div class="road-node-wrapper {{ pos_class }}" id="{{ step.id }}">
         <a href="/step/{{ step.id }}" class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} {{ mastery_class }}
             {% if step.type == 'theory' %}node-theory
             {% elif step.type == 'validation' %}node-validation

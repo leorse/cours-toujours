@@ -8,22 +8,35 @@ from typing import List, Optional
 
 from src.database import create_db_and_tables, get_session
 from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, RoadStep, RoadStepProgress, TestSubmitRequest
-from src.content_loader import sync_content
+from src.content_manager import ContentManager
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
 from src.models import ExerciseLog, Exercise
 from src.generators import ExerciseFactory
 import re
-import os
 import time
 
-def smart_compare(user_val, correct_val):
+def smart_compare(user_val, correct_val, ex_type: Optional[str] = None):
     """
     Compares two values handling strings vs lists, and fractions/floats.
     """
     if user_val is None:
         return False
         
+    # 0. List comparison
+    if isinstance(user_val, list) and isinstance(correct_val, list):
+        if len(user_val) != len(correct_val):
+            return False
+            
+        u_list = [str(x).strip() for x in user_val]
+        c_list = [str(x).strip() for x in correct_val]
+        
+        if ex_type == "multiselect":
+            return sorted(u_list) == sorted(c_list)
+        else:
+            # For cloze (texte à trou) or drag_drop, order matters
+            return u_list == c_list
+
     s_user = str(user_val).strip()
     s_correct = str(correct_val).strip()
     
@@ -35,12 +48,7 @@ def smart_compare(user_val, correct_val):
     try:
         v1 = FractionGenerator.parse_fraction(s_user)
         v2 = FractionGenerator.parse_fraction(s_correct)
-        # Only consider match if they are not both zero (unless string matched "0") 
-        # OR if we trust parse_fraction not to false-positive on random text.
-        # FractionGenerator.parse_fraction returns 0.0 on error. 
-        # So we must verify if they were actually numbers.
         
-        # Let's try to validate if they look like numbers/fractions first
         is_num_1 = any(c.isdigit() for c in s_user)
         is_num_2 = any(c.isdigit() for c in s_correct)
         
@@ -54,7 +62,7 @@ def smart_compare(user_val, correct_val):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
-    sync_content()
+    ContentManager.load_all()
     yield
 
 app = FastAPI(title="Cours Toujours!", lifespan=lifespan)
@@ -113,7 +121,7 @@ def dashboard(request: Request, session: Session = Depends(get_session), user: U
     if not user:
         return RedirectResponse(url="/")
         
-    subjects = session.exec(select(Subject)).all()
+    subjects = ContentManager.get_subjects()
     
     # Get progress dict {subject_id: total_score}
     progress_entries = session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id)).all()
@@ -131,16 +139,12 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
     if not user:
         return RedirectResponse(url="/")
         
-    subject = session.get(Subject, subject_id)
+    subject = ContentManager.get_subject(subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
         
-    # Get all road steps for this subject
-    steps = session.exec(
-        select(RoadStep)
-        .where(RoadStep.subject_id == subject_id)
-        .order_by(RoadStep.order)
-    ).all()
+    # Get all road steps for this subject from ContentManager
+    steps = ContentManager.get_steps_for_subject(subject_id)
     
     # Calculate completed steps
     completed_entries = []
@@ -149,12 +153,6 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
             RoadStepProgress.user_id == user.id, 
             RoadStepProgress.is_completed == True
         )).all()
-        # Also fetch mastery for all steps (even if not 'completed' per se, though logic ties them)
-        # Actually let's fetch all progress for this subject's steps to map mastery
-        # But for now, sticking to existing pattern
-        
-        # We need to pass mastery info to template
-        # Let's create a map: step_id -> mastery_level
         
         all_progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id
@@ -167,16 +165,6 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
         mastery_map = {}
         
     completed_steps = [p.step_id for p in completed_entries]
-    
-    # Validation of data integrity
-    valid_steps = []
-    for s in steps:
-        if s.id and s.type:
-             valid_steps.append(s)
-        else:
-             print(f"Skipping invalid step: {s}")
-             
-    steps = valid_steps
     
     return templates.TemplateResponse("subject.html", {
         "request": request,
@@ -192,27 +180,25 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     if not user:
         return RedirectResponse(url="/")
         
-    step = session.get(RoadStep, step_id)
+    step = ContentManager.get_step(step_id)
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     
-    # Progression check: is the previous step completed?
-    if step.order > 0 and not user.is_admin:
-        prev_step = session.exec(select(RoadStep).where(
-            RoadStep.subject_id == step.subject_id,
-            RoadStep.order == step.order - 1
-        )).first()
-        if prev_step:
+    # Progression check: is the previous step completed or is current step activated?
+    if step.order > 0 and not step.activated and not user.is_admin:
+        all_steps = ContentManager.get_steps_for_subject(step.subject_id)
+        if step.order < len(all_steps):
+            prev_step = all_steps[step.order - 1]
             progress = session.exec(select(RoadStepProgress).where(
                 RoadStepProgress.user_id == user.id,
                 RoadStepProgress.step_id == prev_step.id,
                 RoadStepProgress.is_completed == True
             )).first()
             if not progress:
+                # We could redirect here if we wanted to enforce strictly
                 pass
 
     if step.type == "theory" or (step.type == "cours" and step.page_file):
-        # Render theory page (unit.html style but with step context)
         progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id,
             RoadStepProgress.step_id == step_id
@@ -222,25 +208,22 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
         content = ""
         exercises = []
         if step.page_file:
-            subject_path = os.path.join("content", step.subject_id)
-            page_path = os.path.join(subject_path, step.page_file)
-            if os.path.exists(page_path):
-                with open(page_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    
+            # ContentManager handles file loading
+            content = ContentManager.get_step_content(step.subject_id, step.page_file)
+            if content:
                     # Parser les exercices &&id&&
                     # On va transformer "&&id&&" en "&&&" pour le split progressif du frontend
                     # et extraire les données de l'exercice
                     def replace_exo(match):
                         ex_id = match.group(1)
-                        ex = session.get(Exercise, ex_id)
+                        ex = ContentManager.get_exercise(ex_id)
                         if ex:
                             exercises.append(ex.data)
                         else:
-                            exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé"})
-                        return "&&&" # Séparateur pour unit.html
+                            exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé", "id": ex_id})
+                        return match.group(0) # Preserve for unit.html to find it
                     
-                    content = re.sub(r"&&(.+?)&&", replace_exo, content)
+                    content = re.sub(r"&&(?!&)(.+?)&&", replace_exo, content)
         
         # On crée un faux objet course pour unit.html qui attend course.content_markdown
         dummy_course = {
@@ -263,7 +246,7 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
         
         if step.ref_id:
             # Exercice direct référencé par son ID
-            ex = session.get(Exercise, step.ref_id)
+            ex = ContentManager.get_exercise(step.ref_id)
             if ex:
                 # Si c'est un générateur d'exercices (mode page/flash)
                 if ex.data.get("mode") in ["page", "flash"]:
@@ -300,7 +283,7 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
 
 @app.post("/submit_step")
 def submit_step(submission: SubmitRequest, session: Session = Depends(get_session)):
-    step = session.get(RoadStep, submission.step_id)
+    step = ContentManager.get_step(submission.step_id)
     user = session.get(User, submission.user_id)
     
     if not step or not user:
@@ -347,7 +330,7 @@ def submit_step(submission: SubmitRequest, session: Session = Depends(get_sessio
 @app.post("/submit_test_step")
 def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(get_session)):
     user = session.get(User, submission.user_id)
-    step = session.get(RoadStep, submission.step_id)
+    step = ContentManager.get_step(submission.step_id)
     if not user or not step:
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -357,10 +340,11 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
 
     for exercise in submission.generated_exercises:
         ex_id = exercise.get("id")
+        ex_type = exercise.get("type")
         correct_val = exercise.get("answer")
         user_val = submission.answers.get(ex_id)
         
-        is_correct = smart_compare(user_val, correct_val)
+        is_correct = smart_compare(user_val, correct_val, ex_type=ex_type)
         results[ex_id] = { "correct": is_correct, "correct_answer": correct_val }
         
         # --- LOGGING ---
@@ -476,16 +460,15 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
     if not user:
         return RedirectResponse(url="/")
         
-    subject = session.get(Subject, subject_id)
+    subject = ContentManager.get_subject(subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
         
-    courses = session.exec(select(Course).where(Course.subject_id == subject_id)).all()
-    if not courses:
-        raise HTTPException(status_code=404, detail="No courses found for this subject")
-        
-    # Generate Exercises from all courses
-    exercises = TestGenerator.generate_flash(courses, total_questions=15)
+    # Generate Exercises (Flash Mode)
+    # Since we don't have courses in DB anymore, we use TestGenerator differently or provide specific logic
+    # For now, let's use a simplified approach for subject-wide flash
+    dummy_course = type('obj', (object,), {'generator_type': 'multiplication'})
+    exercises = TestGenerator.generate_step_exercises(dummy_course, "validation", count=15)
     
     flash_course = {
         "id": f"flash_{subject_id}",
@@ -493,7 +476,6 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
         "subject_id": subject_id
     }
     
-    # We can reuse test.html for flash mode by passing a dummy step-like object
     flash_step = {
         "id": f"flash_{subject_id}",
         "title": f"Mode Flash : {subject.name}",
@@ -516,9 +498,6 @@ def admin_reset_all(request: Request, session: Session = Depends(get_session), u
          return RedirectResponse(url="/")
     
     # Delete all progress
-    session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id))
-    # sqlmodel delete is a bit manual or needs execute
-    # simpler: select and delete
     sub_progs = session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id)).all()
     for sp in sub_progs:
         session.delete(sp)
@@ -538,43 +517,77 @@ def admin_validate_all(request: Request, session: Session = Depends(get_session)
     if not user or not user.is_admin:
          return RedirectResponse(url="/")
          
-    # Mark all steps as completed
-    all_steps = session.exec(select(RoadStep)).all()
-    
-    # Needs to update SubjectProgress too? Maybe just marking steps is enough visual feedback normally, 
-    # but for "all done" we probably want 100% everywhere.
-    
-    for step in all_steps:
-        # Check if already exists
-        prog = session.exec(select(RoadStepProgress).where(
-            RoadStepProgress.user_id == user.id,
-            RoadStepProgress.step_id == step.id
-        )).first()
-        
-        if not prog:
-            prog = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True)
-            session.add(prog)
-        elif not prog.is_completed:
-            prog.is_completed = True
-            session.add(prog)
-            
-    # Naive Subject Progress update (just set to something high or iterate properly)
-    # Let's just create progress entries for all subjects if missing
-    all_subjects = session.exec(select(Subject)).all()
+    # Mark all steps as completed from ContentManager
+    all_subjects = ContentManager.get_subjects()
     for sub in all_subjects:
-         sub_prog = session.exec(select(SubjectProgress).where(
+        steps = ContentManager.get_steps_for_subject(sub.id)
+        for step in steps:
+            prog = session.exec(select(RoadStepProgress).where(
+                RoadStepProgress.user_id == user.id,
+                RoadStepProgress.step_id == step.id
+            )).first()
+            if not prog:
+                prog = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True, mastery=3)
+                session.add(prog)
+            else:
+                prog.is_completed = True
+                prog.mastery = 3
+                session.add(prog)
+                
+        sub_prog = session.exec(select(SubjectProgress).where(
             SubjectProgress.user_id == user.id,
             SubjectProgress.subject_id == sub.id
         )).first()
-         if not sub_prog:
-             sub_prog = SubjectProgress(user_id=user.id, subject_id=sub.id, score=9999)
-             session.add(sub_prog)
-         else:
-             sub_prog.score = 9999
-             session.add(sub_prog)
+        if not sub_prog:
+            sub_prog = SubjectProgress(user_id=user.id, subject_id=sub.id, score=999)
+        else:
+            sub_prog.score = 999
+        session.add(sub_prog)
              
     user.total_xp = 99999
     session.add(user)
-    
     session.commit()
     return RedirectResponse(url="/dashboard", status_code=303)
+
+@app.get("/admin/validate_step/{step_id}")
+def admin_validate_step(step_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or not user.is_admin:
+         return RedirectResponse(url="/")
+    
+    step = ContentManager.get_step(step_id)
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+        
+    progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.step_id == step_id
+    )).first()
+    
+    if not progress:
+        progress = RoadStepProgress(user_id=user.id, step_id=step_id, is_completed=True, mastery=3)
+    else:
+        progress.is_completed = True
+        progress.mastery = 3
+    session.add(progress)
+    session.commit()
+    return RedirectResponse(url=f"/subjects/{step.subject_id}", status_code=303)
+
+@app.get("/admin/invalidate_step/{step_id}")
+def admin_invalidate_step(step_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or not user.is_admin:
+         return RedirectResponse(url="/")
+         
+    step = ContentManager.get_step(step_id)
+    if not step:
+         raise HTTPException(status_code=404, detail="Step not found")
+
+    progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.step_id == step_id
+    )).first()
+    
+    if progress:
+        session.delete(progress)
+        session.commit()
+        
+    return RedirectResponse(url=f"/subjects/{step.subject_id}", status_code=303)

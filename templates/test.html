@@ -7,7 +7,8 @@
     <header style="margin-bottom: 3rem; text-align: center;">
         <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">{{ step.title }}</h1>
         <p style="color: var(--text-muted);">Cours : {{ course.title }}</p>
-        <a href="/subjects/{{ course.subject_id }}" style="color: var(--secondary); text-decoration: none;">&larr;
+        <a href="/subjects/{{ course.subject_id }}#{{ step.id }}"
+            style="color: var(--secondary); text-decoration: none;">&larr;
             Revenir à la route</a>
     </header>
 
@@ -23,54 +24,57 @@
         <button onclick="simulatePerfectScore()"
             style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.8rem;">Simuler Score
             Parfait</button>
-        <button onclick="submitTest()" style="display: block; width: 100%; font-size: 0.8rem;">Valider le Test</button>
+        <button onclick="submitTest()"
+            style="display: block; width: 100%; font-size: 0.8rem; margin-bottom: 0.5rem;">Valider le Test
+            (Submit)</button>
+        <a href="/admin/validate_step/{{ step.id }}"
+            style="display: block; width: 100%; font-size: 0.8rem; margin-bottom: 0.5rem; text-align: center; background: #eee; color: #333; text-decoration: none; padding: 2px;">Force
+            Valider</a>
+        <a href="/admin/invalidate_step/{{ step.id }}"
+            style="display: block; width: 100%; font-size: 0.8rem; text-align: center; background: #fee; color: red; text-decoration: none; padding: 2px;">Invalider</a>
     </div>
     <script>
         function simulatePerfectScore() {
-            // Fill all answers with correct ones
             if (!stepData || !stepData.exercises) return;
-
-            stepData.exercises.forEach(ex => {
-                // Update logic state
-                userAnswers[ex.id] = ex.answer;
-
-                // Update UI
-                if (ex.type === 'input') {
-                    const input = document.querySelector(`input[onchange*="${ex.id}"]`);
-                    if (input) input.value = ex.answer;
-                } else if (ex.type === 'fraction_scenario') {
-                    const input = document.querySelector(`input[onchange*="${ex.id}"]`);
-                    if (input) input.value = ex.answer;
-                } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
-                    // Find option matching answer
-                    // Note: ex.answer is string, options are list of strings
-                    // We need to click the button
-                    // This is a bit tricky if we don't have direct ref, but we can search text
-                    const buttons = document.querySelectorAll(`button[onclick*="${ex.id}"]`);
-                    buttons.forEach(btn => {
-                        if (btn.innerText.trim() === ex.answer) {
-                            btn.click(); // Trigger selection logic
-                        }
-                    });
-                } else if (ex.type === 'drag_drop') {
-                    // Drag drop is complex to simulate visually without recreating DOM
-                    // But we can just set the state and maybe fill the text?
-                    const parts = document.querySelectorAll(`span[id^="zone-${ex.id}"]`);
-                    parts.forEach((part, i) => {
-                        // We need to parse answer if it's array? 
-                        // ex.answer might be "A, B" or ["A", "B"]? 
-                        // Check models or generator
-                        // MathGenerator returns string. 
-                        // But DragDrop is likely custom. 
-                        // Assuming simple string for now or list handling elsewhere.
-                        // The submit logic sends userAnswers[ex.id].
-                        // Let's just set the text content to debug
-                        part.innerHTML = "DONE";
-                        part.classList.add('filled');
-                    });
-                }
-            });
+            stepData.exercises.forEach(ex => solveExercise(ex));
             alert("Score parfait simulé (Données remplies). Vous pouvez valider.");
+        }
+
+        function solveExercise(ex) {
+            if (ex.type === 'input' || ex.type === 'fraction_scenario') {
+                const input = document.querySelector(`input[onchange*="${ex.id}"]`);
+                if (input) {
+                    input.value = ex.answer;
+                    userAnswers[ex.id] = ex.answer;
+                }
+            } else if (ex.type === 'drag_drop') {
+                const zones = document.querySelectorAll(`[id^="zone-${ex.id}"]`);
+                zones.forEach((zone, i) => {
+                    zone.textContent = ex.answer[i];
+                    zone.classList.add('filled');
+                });
+                userAnswers[ex.id] = [...ex.answer];
+            } else if (ex.type === 'cloze') {
+                const selects = document.querySelectorAll(`select[onchange*="${ex.id}"]`);
+                selects.forEach((sel, i) => {
+                    sel.value = ex.answer[i];
+                    saveCloze(sel, ex.id, i);
+                });
+            } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
+                const buttons = document.querySelectorAll(`button[onclick*="${ex.id}"]`);
+                if (ex.type === 'qcm') {
+                    userAnswers[ex.id] = null;
+                    buttons.forEach(b => b.classList.remove('selected'));
+                } else {
+                    userAnswers[ex.id] = [];
+                    buttons.forEach(b => b.classList.remove('selected'));
+                }
+                buttons.forEach(btn => {
+                    const btnVal = btn.innerText.trim();
+                    const isShouldBeSelected = Array.isArray(ex.answer) ? ex.answer.includes(btnVal) : btnVal === String(ex.answer).trim();
+                    if (isShouldBeSelected) btn.click();
+                });
+            }
         }
     </script>
     {% endif %}
@@ -88,6 +92,9 @@
         exercises: {{ exercises | tojson }}
     };
     const userId = {{ user.id }};
+    const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+    const userAnswers = {};
+
     // In test mode, we might not show previous progress immediately, or maybe we do?
     // Let's assume a fresh test attempt or just standard submission.
     // If we want to allow retries, we might not pre-fill progress unless it's a "saved state".
@@ -123,13 +130,15 @@
             card.style.marginBottom = '3rem';
             card.style.paddingBottom = '2rem';
             card.style.borderBottom = '1px solid var(--glass-border)';
+            card.style.position = 'relative';
 
             // Render specific exercise types
             let contentHtml = '';
 
             if (ex.type === 'drag_drop') {
                 let templateText = ex.template || '';
-                let parts = templateText.split('???');
+                // Support both ... and ???
+                let parts = templateText.split(/\.\.\.|\?\?\?/);
                 let newHtml = '';
 
                 parts.forEach((part, i) => {
@@ -141,7 +150,7 @@
                 });
 
                 contentHtml = `
-                    <div style="margin-bottom: 1.5rem; font-size: 1.1rem; line-height: 2;">${newHtml}</div>
+                    <div style="margin-bottom: 1.5rem; font-size: 1.2rem; line-height: 2.2;">${newHtml}</div>
                     <div class="options-container" style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
                         ${ex.options.map(opt => {
                     return `<div class="draggable-item" draggable="true" ondragstart="drag(event, '${opt.replace(/'/g, "\\'")}')">${opt}</div>`;
@@ -162,6 +171,28 @@
                         FractionRenderer.render(cId, ex);
                     }
                 }, 100);
+            } else if (ex.type === 'cloze') {
+                let templateText = ex.template || ex.question || '';
+                // Support both ... and ??? as markers
+                let parts = templateText.split(/\.\.\.|\?\?\?/);
+                let newHtml = '';
+                const options = ex.options || [];
+
+                parts.forEach((part, i) => {
+                    newHtml += part;
+                    if (i < parts.length - 1) {
+                        newHtml += `
+                            <select onchange="saveCloze(this, '${ex.id}', ${i})" 
+                                    style="padding: 0.2rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
+                                <option value="">...</option>
+                                ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            </select>
+                        `;
+                    }
+                });
+                contentHtml = `
+                    <div style="margin-bottom: 1.5rem; line-height: 2.2; font-size: 1.2rem;">${newHtml}</div>
+                `;
             } else if (ex.type === 'input') {
                 // Check if we have a blueprint in metadata
                 let blueprintHtml = '';
@@ -183,10 +214,12 @@
                         style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-primary);">
                 `;
             } else {
-                // MCQ / QCM
+                // MCQ / QCM / Multiselect
                 const options = ex.options || [];
+                const isMulti = ex.type === 'multiselect';
                 contentHtml = `
-                    <p style="margin-bottom: 1.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
+                    <p style="margin-bottom: 0.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
+                    ${isMulti ? '<p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 1.5rem;">(Plusieurs réponses possibles)</p>' : ''}
                     <div class="options-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         ${options.map((opt, optIndex) => {
                     return `
@@ -199,10 +232,21 @@
                 `;
             }
 
+            let adminBtnHtml = '';
+            if (isAdmin) {
+                adminBtnHtml = `
+                    <button onclick='solveExercise(stepData.exercises[${index}])' 
+                            style="position: absolute; top: 0; right: 0; background: var(--secondary); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">
+                        Auto-Valid (Admin)
+                    </button>
+                    `;
+            }
+
             card.innerHTML = `
                 <div style="font-weight: bold; margin-bottom: 1rem; color: var(--secondary); font-size: 1.1em;">
                     Question ${index + 1}
                 </div>
+                ${adminBtnHtml}
                 ${contentHtml}
                 <div id="feedback-${ex.id}" style="margin-top: 1rem; font-weight: bold;"></div>
             `;
@@ -220,10 +264,14 @@
         container.appendChild(submitBtn);
     }
 
-    const userAnswers = {};
-
     function saveInput(input, exId) {
         userAnswers[exId] = input.value;
+    }
+
+    function saveCloze(select, exId, index) {
+        if (!userAnswers[exId]) userAnswers[exId] = [];
+        if (!Array.isArray(userAnswers[exId])) userAnswers[exId] = [];
+        userAnswers[exId][index] = select.value;
     }
 
     function selectOption(btn, exId, optIndex) {
@@ -233,10 +281,23 @@
 
         const value = ex.options[optIndex];
 
-        const parent = btn.parentElement;
-        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        userAnswers[exId] = value;
+        if (ex.type === 'multiselect') {
+            if (!userAnswers[exId]) userAnswers[exId] = [];
+            if (!Array.isArray(userAnswers[exId])) userAnswers[exId] = []; // Reset if it was a string by accident
+
+            if (userAnswers[exId].includes(value)) {
+                userAnswers[exId] = userAnswers[exId].filter(v => v !== value);
+                btn.classList.remove('selected');
+            } else {
+                userAnswers[exId].push(value);
+                btn.classList.add('selected');
+            }
+        } else {
+            const parent = btn.parentElement;
+            parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            userAnswers[exId] = value;
+        }
     }
 
     function allowDrop(ev) {

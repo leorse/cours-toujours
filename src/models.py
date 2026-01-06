@@ -4,33 +4,28 @@ from sqlalchemy import Column, JSON
 
 # --- Modèles de Base de Données ---
 
-class Subject(SQLModel, table=True):
-    id: str = Field(primary_key=True) # ex: "maths"
-    name: str
-    courses: List["Course"] = Relationship(back_populates="subject")
-    road_steps: List["RoadStep"] = Relationship(back_populates="subject")
+# --- Modèles de Contenu (Fichiers) ---
 
-class Course(SQLModel, table=True):
-    id: str = Field(primary_key=True) # ex: "math_01"
+class Subject(SQLModel):
+    id: str # ex: "maths"
+    name: str
+
+class Course(SQLModel):
+    id: str # ex: "math_01"
     title: str
     content_markdown: str
-    generator_type: str = Field(default="generic") # addition, soustraction, etc.
-    
-    # Stockage des exercices statiques (extraits du markdown)
-    exercises: List[dict] = Field(default=[], sa_column=Column(JSON))
-    session_config: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
-    
-    subject_id: str = Field(foreign_key="subject.id")
-    subject: Subject = Relationship(back_populates="courses")
-    road_steps: List["RoadStep"] = Relationship(back_populates="course")
+    generator_type: str = "generic"
+    exercises: List[dict] = []
+    session_config: Dict[str, Any] = {}
+    subject_id: str
 
-class Exercise(SQLModel, table=True):
-    id: str = Field(primary_key=True)
-    subject_id: str = Field(foreign_key="subject.id")
-    data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+class Exercise(SQLModel):
+    id: str
+    subject_id: str
+    data: Dict[str, Any] = {}
 
-class RoadStep(SQLModel, table=True):
-    id: str = Field(primary_key=True) # course_id_theory, course_id_simple, etc.
+class RoadStep(SQLModel):
+    id: str # course_id_theory, course_id_simple, etc.
     title: str
     subtitle: Optional[str] = None
     type: str # theory, validation, practice_simple, practice_medium, practice_hard, flash, page
@@ -39,11 +34,11 @@ class RoadStep(SQLModel, table=True):
     ref_id: Optional[str] = None # ID of the exercise if type is exercise-direct
     page_file: Optional[str] = None # Filename of the markdown page if type is theory
     
-    course_id: Optional[str] = Field(default=None, foreign_key="course.id")
-    subject_id: str = Field(foreign_key="subject.id")
-    
-    course: Optional["Course"] = Relationship(back_populates="road_steps")
-    subject: "Subject" = Relationship(back_populates="road_steps")
+    course_id: Optional[str] = None
+    subject_id: str
+    activated: bool = False
+
+# --- Modèles de Base de Données (Persistance Utilisateur) ---
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -58,11 +53,10 @@ class User(SQLModel, table=True):
     def is_admin(self) -> bool:
         return "_ADMIN" in self.username
 
-
 class SubjectProgress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    subject_id: str = Field(foreign_key="subject.id")
+    subject_id: str = Field(index=True)
     score: int = Field(default=0)
     
     user: User = Relationship(back_populates="progress")
@@ -70,7 +64,7 @@ class SubjectProgress(SQLModel, table=True):
 class RoadStepProgress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    step_id: str = Field(foreign_key="roadstep.id")
+    step_id: str = Field(index=True)
     is_completed: bool = Field(default=False)
     mastery: int = Field(default=0) # 0 to 3
     answers: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
@@ -80,13 +74,10 @@ class RoadStepProgress(SQLModel, table=True):
 class ExerciseLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    # hierarchical tag: "math:calcul:addition"
     tag: str = Field(index=True)
     question_id: str
     is_correct: bool
     timestamp: float 
-    
-    # Optional: store full context if needed
     difficulty: str
 
 

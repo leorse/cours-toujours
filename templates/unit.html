@@ -7,7 +7,7 @@
     <!-- Course Content -->
     <div class="glass glass-panel content-area animate-fade-in">
         <header style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 2rem;">
-            <a href="/subjects/{{ step.subject_id }}"
+            <a href="/subjects/{{ step.subject_id }}#{{ step.id }}"
                 style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">&larr; Retour à la route</a>
             <h1 style="margin-top: 0.5rem;">{{ step.title }}</h1>
             <p style="color: var(--secondary); font-size: 0.9rem;">{{ step.subtitle if step.subtitle else "" }}</p>
@@ -25,6 +25,18 @@
         </div>
     </div>
 </div>
+
+{% if user.is_admin %}
+<div class="admin-toolbar glass"
+    style="position: fixed; bottom: 20px; right: 20px; padding: 1rem; z-index: 1000; border: 1px solid var(--secondary);">
+    <h4 style="margin: 0 0 0.5rem 0; color: var(--secondary);">Admin Mode</h4>
+    <a href="/admin/validate_step/{{ step.id }}"
+        style="display: block; width: 100%; font-size: 0.8rem; margin-bottom: 0.5rem; text-align: center; background: #eee; color: #333; text-decoration: none; padding: 2px;">Force
+        Valider</a>
+    <a href="/admin/invalidate_step/{{ step.id }}"
+        style="display: block; width: 100%; font-size: 0.8rem; text-align: center; background: #fee; color: red; text-decoration: none; padding: 2px;">Invalider</a>
+</div>
+{% endif %}
 
 <script id="course-markdown" type="application/json">{{ course.content_markdown | tojson }}</script>
 
@@ -50,6 +62,7 @@
         padding: 1.5rem;
         margin: 2rem 0;
         display: none;
+        position: relative;
     }
 
     .interleaved-exercise.visible {
@@ -111,6 +124,7 @@
     stepData.rawContent = markdownText;
     const userId = {{ user.id }};
     const isAlreadyCompleted = {{ 'true' if user_progress and user_progress.is_completed else 'false' }};
+    const isAdmin = {{ 'true' if user.is_admin else 'false' }};
 
     const sections = (stepData.rawContent || "").split('&&&').map(s => s.trim()).filter(s => s.length > 0);
     const container = document.getElementById('progressive-content');
@@ -122,6 +136,19 @@
             renderSection(0);
         }
     });
+
+    const answers = {};
+    const userAnswers = {};
+
+    function saveInput(input, index) {
+        answers[index] = input.value;
+    }
+
+    function saveCloze(select, exIndex, holeIndex) {
+        if (!answers[exIndex]) answers[exIndex] = [];
+        if (!Array.isArray(answers[exIndex])) answers[exIndex] = [];
+        answers[exIndex][holeIndex] = select.value;
+    }
 
     function renderSection(index) {
         if (index >= sections.length) {
@@ -144,12 +171,24 @@
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = marked.parse(protectedContent);
 
-        // Restore Math safely (No innerHTML roundtrip after restoration)
+        // Restore Math safely
         tempDiv.querySelectorAll('.math-px').forEach(span => {
             const idx = span.getAttribute('data-idx');
             const mathText = mathBlocks[idx];
             span.replaceWith(document.createTextNode(mathText));
         });
+
+        // Placeholder Replacement: Find &&exercise_id&&
+        let contentHtml = tempDiv.innerHTML;
+        // Robust regex to handle potential HTML escaping of & by marked
+        const exerciseRegex = /(?:&&|&amp;&amp;)([\w-]+)(?:&&|&amp;&amp;)/g;
+        const foundExIds = [];
+
+        contentHtml = contentHtml.replace(exerciseRegex, (match, exId) => {
+            foundExIds.push(exId);
+            return `<div id="ph-${exId}" class="exercise-placeholder"></div>`;
+        });
+        tempDiv.innerHTML = contentHtml;
 
         sectionDiv.appendChild(tempDiv);
         container.appendChild(sectionDiv);
@@ -164,59 +203,89 @@
 
         setTimeout(() => sectionDiv.classList.add('visible'), 10);
 
-        const exercise = stepData.exercises[index];
-        if (exercise) {
-            renderExercise(index, exercise);
+        // Render the exercises found in this section
+        if (foundExIds.length > 0) {
+            foundExIds.forEach(exId => {
+                const ex = stepData.exercises.find(e => e.id === exId);
+                if (ex) {
+                    renderExerciseInPlaceholder(exId, ex, index);
+                } else {
+                    const ph = document.getElementById(`ph-${exId}`);
+                    if (ph) ph.innerHTML = `<p class="text-error">Exercice introuvable : ${exId}</p>`;
+                }
+            });
         } else {
             if (index < sections.length - 1) {
-                const nextBtn = document.createElement('button');
-                nextBtn.className = 'btn-secondary';
-                nextBtn.style.margin = '1rem 0 3rem 0';
-                nextBtn.textContent = 'Continuer la lecture ⬇️';
-                nextBtn.onclick = (e) => {
-                    e.target.remove();
-                    renderSection(index + 1);
-                };
-                container.appendChild(nextBtn);
-            } else {
-                renderSection(index + 1);
+                showContinueButton(index);
             }
         }
     }
 
-    function renderExercise(index, ex) {
+    function showContinueButton(index) {
+        // Prevent duplicate buttons
+        if (document.getElementById(`next-btn-${index}`)) return;
+
+        const nextBtn = document.createElement('button');
+        nextBtn.id = `next-btn-${index}`;
+        nextBtn.className = 'btn-secondary animate-fade-in';
+        nextBtn.style.margin = '1rem 0 3rem 0';
+        nextBtn.textContent = 'Continuer la lecture ⬇️';
+        nextBtn.onclick = (e) => {
+            e.target.remove();
+            renderSection(index + 1);
+        };
+        container.appendChild(nextBtn);
+    }
+
+    function renderExerciseInPlaceholder(exId, ex, sectionIndex) {
+        const ph = document.getElementById(`ph-${exId}`);
+        if (!ph) return;
+
         const exDiv = document.createElement('div');
         exDiv.className = 'interleaved-exercise visible';
-        exDiv.id = `ex-wrapper-${index}`;
+        exDiv.id = `ex-wrapper-${exId}`;
+        exDiv.dataset.section = sectionIndex;
+
+        let adminBtnHtml = '';
+        if (isAdmin) {
+            adminBtnHtml = `
+                    <button onclick='solveExerciseById("${exId}")' 
+                            style="position: absolute; top: 0; right: 0; background: var(--secondary); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; cursor: pointer; z-index: 10;">
+                        Auto-Valid (Admin)
+                    </button>
+                    `;
+        }
 
         exDiv.innerHTML = `
             <div style="font-weight: bold; color: var(--secondary); margin-bottom: 1rem;">✍️ Petite vérification...</div>
-            <div id="ex-content-${index}"></div>
-            <div id="ex-feedback-${index}" style="margin-top: 1rem; font-weight: bold; display: none;"></div>
-            <button id="ex-btn-${index}" class="btn-primary" style="margin-top: 1rem;" onclick="validateExercise(${index})">Vérifier</button>
+            ${adminBtnHtml}
+            <div id="ex-cont-${exId}"></div>
+            <div id="ex-fb-${exId}" style="margin-top: 1rem; font-weight: bold; display: none;"></div>
+            <button id="ex-bt-${exId}" class="btn-primary" style="margin-top: 1rem;" onclick="validateExerciseById('${exId}')">Vérifier</button>
         `;
-        container.appendChild(exDiv);
+        ph.appendChild(exDiv);
 
-        const contentDiv = document.getElementById(`ex-content-${index}`);
-        if (ex.type === 'qcm') {
+        const contentDiv = document.getElementById(`ex-cont-${exId}`);
+        if (ex.type === 'qcm' || ex.type === 'multiselect') {
+            const isMulti = ex.type === 'multiselect';
             contentDiv.innerHTML = `
-                <p style="margin-bottom: 1rem;">${ex.question}</p>
+                <p style="margin-bottom: 0.5rem;">${ex.question}</p>
+                ${isMulti ? '<p style="font-size: 0.7rem; color: var(--secondary); margin-bottom: 1rem;">(Plusieurs réponses possibles)</p>' : ''}
                 <div class="options-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
                     ${ex.options.map(opt => `
-                        <button class="option-btn" onclick="selectOption(this, ${index}, '${opt}')">${opt}</button>
+                        <button class="option-btn" onclick="selectOptionById(this, '${exId}', '${opt}')">${opt}</button>
                     `).join('')}
                 </div>
             `;
         } else if (ex.type === 'drag_drop') {
             let templateText = ex.template || '';
-            let parts = templateText.split('???');
+            let parts = templateText.split(/\.\.\.|\?\?\?/);
             let newHtml = '';
 
             parts.forEach((part, i) => {
                 newHtml += part;
                 if (i < parts.length - 1) {
-                    const zoneId = `zone-${index}-${i}`;
-                    newHtml += `<span class="drop-zone" id="${zoneId}" ondrop="onDrop(event, ${index}, ${i})" ondragover="allowDrop(event)"></span>`;
+                    newHtml += `<span class="drop-zone" id="zone-${exId}-${i}" ondrop="onDropById(event, '${exId}', ${i})" ondragover="allowDrop(event)"></span>`;
                 }
             });
 
@@ -229,24 +298,37 @@
                 </div>
             `;
         } else if (ex.type === 'fraction_scenario') {
-            const cId = `visual-${index}`;
+            const visualId = `vs-${exId}`;
             contentDiv.innerHTML = `
-                <div id="${cId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 300px; height: 300px;"></div>
+                <div id="${visualId}" style="margin: 0 auto 1.5rem auto; width: 100%; max-width: 300px; height: 300px;"></div>
                 <p style="margin-bottom: 1rem; font-size: 1.1rem;">${ex.question}</p>
-                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="answers[${index}] = this.value">
+                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="saveInputById(this, '${exId}')">
             `;
             setTimeout(() => {
-                if (window.FractionRenderer) {
-                    FractionRenderer.render(cId, ex);
-                }
+                if (window.FractionRenderer) FractionRenderer.render(visualId, ex);
             }, 100);
-        } else if (ex.type === 'input') {
+        } else if (ex.type === 'cloze') {
+            let templateText = ex.template || ex.question || '';
+            let parts = templateText.split(/\.\.\.|\?\?\?/);
+            let newHtml = '';
+            parts.forEach((part, i) => {
+                newHtml += part;
+                if (i < parts.length - 1) {
+                    newHtml += `
+                        <select onchange="saveClozeById(this, '${exId}', ${i})" 
+                                style="padding: 0.1rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
+                            <option value="">...</option>
+                            ${ex.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                        </select>
+                    `;
+                }
+            });
+            contentDiv.innerHTML = `<div style="margin-bottom: 1rem; line-height: 2.2;">${newHtml}</div>`;
+        } else {
             contentDiv.innerHTML = `
                 <p style="margin-bottom: 1rem; font-size: 1.1rem;">${ex.question || ex.template}</p>
-                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="answers[${index}] = this.value">
+                <input type="text" class="flash-input" style="font-size: 1.1rem; padding: 0.6rem;" placeholder="Votre réponse" onchange="saveInputById(this, '${exId}')">
             `;
-        } else {
-            contentDiv.innerHTML = `<p>${ex.question || ex.template}</p><p class="text-muted">(Exercice non supporté en ligne pour le moment)</p>`;
         }
 
         renderMathInElement(contentDiv, {
@@ -258,120 +340,140 @@
         });
     }
 
-    const answers = {};
+    const answersById = {};
 
-    function selectOption(btn, index, val) {
-        const parent = btn.parentElement;
-        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        answers[index] = val;
+    function saveInputById(input, exId) { answersById[exId] = input.value; }
+    function saveClozeById(sel, exId, idx) {
+        if (!answersById[exId]) answersById[exId] = [];
+        answersById[exId][idx] = sel.value;
     }
 
-    // Drag and Drop Handlers
-    function allowDrop(ev) {
-        ev.preventDefault();
-        ev.target.classList.add('drag-over');
+    function selectOptionById(btn, exId, val) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+        if (ex.type === 'multiselect') {
+            if (!Array.isArray(answersById[exId])) answersById[exId] = [];
+            if (answersById[exId].includes(val)) {
+                answersById[exId] = answersById[exId].filter(v => v !== val);
+                btn.classList.remove('selected');
+            } else {
+                answersById[exId].push(val);
+                btn.classList.add('selected');
+            }
+        } else {
+            btn.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            answersById[exId] = val;
+        }
     }
 
     function onDragStart(ev, value) {
         ev.dataTransfer.setData("text", value);
     }
 
-    function onDrop(ev, index, zoneIndex) {
+    function allowDrop(ev) {
+        ev.preventDefault();
+        ev.target.classList.add('drag-over');
+    }
+
+    function onDropById(ev, exId, zoneIdx) {
         ev.preventDefault();
         ev.target.classList.remove('drag-over');
         const data = ev.dataTransfer.getData("text");
-
         ev.target.textContent = data;
         ev.target.classList.add('filled');
-
-        if (!answers[index]) answers[index] = [];
-        if (!Array.isArray(answers[index])) answers[index] = [answers[index]];
-
-        answers[index][zoneIndex] = data;
+        if (!Array.isArray(answersById[exId])) answersById[exId] = [];
+        answersById[exId][zoneIdx] = data;
     }
 
-    function validateExercise(index) {
-        const ex = stepData.exercises[index];
-        const userVal = answers[index];
-        const feedback = document.getElementById(`ex-feedback-${index}`);
-        const wrapper = document.getElementById(`ex-wrapper-${index}`);
-        const btn = document.getElementById(`ex-btn-${index}`);
+    function solveExerciseById(exId) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+        const cont = document.getElementById(`ex-cont-${exId}`);
+        if (ex.type === 'qcm' || ex.type === 'multiselect') {
+            const btns = cont.querySelectorAll('button.option-btn');
+            btns.forEach(b => b.classList.remove('selected'));
+            answersById[exId] = ex.type === 'multiselect' ? [] : null;
+            btns.forEach(b => {
+                const val = b.innerText.trim();
+                const should = Array.isArray(ex.answer) ? ex.answer.includes(val) : val === String(ex.answer).trim();
+                if (should) b.click();
+            });
+        } else if (ex.type === 'input' || ex.type === 'fraction_scenario') {
+            const inp = cont.querySelector('input');
+            if (inp) { inp.value = ex.answer; answersById[exId] = ex.answer; }
+        } else if (ex.type === 'cloze') {
+            const sels = cont.querySelectorAll('select');
+            sels.forEach((s, i) => { s.value = ex.answer[i]; saveClozeById(s, exId, i); });
+        } else if (ex.type === 'drag_drop') {
+            const zones = cont.querySelectorAll('.drop-zone');
+            zones.forEach((z, i) => { z.textContent = ex.answer[i]; z.classList.add('filled'); });
+            answersById[exId] = [...ex.answer];
+        }
+        setTimeout(() => validateExerciseById(exId), 200);
+    }
 
-        if (!userVal) {
-            alert("S'il te plaît, réponds à la question avant de vérifier !");
-            return;
+    function validateExerciseById(exId) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        const userVal = answersById[exId];
+        const fb = document.getElementById(`ex-fb-${exId}`);
+        const wrapper = document.getElementById(`ex-wrapper-${exId}`);
+        const btn = document.getElementById(`ex-bt-${exId}`);
+        const sectionIdx = parseInt(wrapper.dataset.section);
+
+        const expectedCount = Array.isArray(ex.answer) ? ex.answer.length : 1;
+        const actualCount = Array.isArray(userVal) ? userVal.filter(v => v).length : (userVal ? 1 : 0);
+
+        if (actualCount < expectedCount) {
+            alert("Réponds à la question avant de vérifier !"); return;
         }
 
         let isCorrect = false;
         if (Array.isArray(ex.answer)) {
             if (Array.isArray(userVal) && userVal.length === ex.answer.length) {
-                isCorrect = userVal.every((v, i) => String(v).trim() === String(ex.answer[i]).trim());
+                const u = userVal.map(v => String(v).trim());
+                const a = ex.answer.map(v => String(v).trim());
+                isCorrect = ex.type === 'multiselect' ? u.sort().every((v, i) => v === a.sort()[i]) : u.every((v, i) => v === a[i]);
             }
         } else {
-            // If userVal is array but answer is single string (single ???)
-            const finalUserVal = Array.isArray(userVal) ? userVal[0] : userVal;
-            isCorrect = String(finalUserVal).trim() === String(ex.answer).trim();
+            const u = String(Array.isArray(userVal) ? userVal[0] : userVal).trim();
+            const a = String(ex.answer).trim();
+            isCorrect = u === a;
+            if (!isCorrect && !isNaN(u) && !isNaN(a)) isCorrect = Math.abs(parseFloat(u) - parseFloat(a)) < 0.001;
         }
 
+        if (isAdmin && !isCorrect) isCorrect = true; // Admin bypass
+
         if (isCorrect) {
-            feedback.innerHTML = "✅ Excellent ! La suite 👇";
-            feedback.style.color = "var(--success)";
-            feedback.style.display = "block";
-            wrapper.classList.add('exercise-done');
+            fb.innerHTML = "✅ Très bien !"; fb.style.color = "var(--success)"; fb.style.display = "block";
+            btn.style.display = "none"; wrapper.style.borderColor = "var(--success)";
 
-            // Lock inputs
-            if (ex.type === 'qcm') {
-                wrapper.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
-            } else if (ex.type === 'drag_drop') {
-                wrapper.querySelectorAll('.draggable-item').forEach(d => d.draggable = false);
+            // Check if all exercises in this section are done
+            const sectionWrapper = document.getElementById(`section-${sectionIdx}`);
+            const allInSec = document.querySelectorAll(`[id^="ex-wrapper-"][data-section="${sectionIdx}"]`);
+            const allBtnInSec = Array.from(allInSec).map(w => document.getElementById(`ex-bt-${w.id.replace('ex-wrapper-', '')}`));
+            const allValidated = allBtnInSec.every(b => b.style.display === "none");
+
+            if (allValidated) {
+                if (sectionIdx < sections.length - 1) showContinueButton(sectionIdx);
+                else document.getElementById('final-footer').style.display = 'block';
             }
-
-            btn.remove();
-            renderSection(index + 1);
         } else {
-            feedback.innerHTML = "❌ Pas tout à fait... réessaie !";
-            feedback.style.color = "var(--error)";
-            feedback.style.display = "block";
+            fb.innerHTML = "❌ Essaie encore !"; fb.style.color = "var(--error)"; fb.style.display = "block";
+            wrapper.style.borderColor = "var(--error)";
+            setTimeout(() => { wrapper.style.borderColor = "var(--glass-border)"; fb.style.display = "none"; }, 2000);
         }
     }
 
     function renderFullContent() {
-        sections.forEach((s, i) => {
-            const div = document.createElement('div');
-            div.className = 'theory-section visible';
-
-            // Protect Math
-            const mathBlocks = [];
-            const protectedContent = s.replace(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g, (match) => {
-                const idx = mathBlocks.length;
-                mathBlocks.push(match);
-                return `<span class="math-px" data-idx="${idx}"></span>`;
-            });
-
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = marked.parse(protectedContent);
-
-            // Restore Math safely (No innerHTML roundtrip after restoration)
-            tempDiv.querySelectorAll('.math-px').forEach(span => {
-                const idx = span.getAttribute('data-idx');
-                const mathText = mathBlocks[idx];
-                span.replaceWith(document.createTextNode(mathText));
-            });
-
-            div.appendChild(tempDiv);
-            container.appendChild(div);
-
-            renderMathInElement(div, {
-                delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
-                throwOnError: false
-            });
-            if (i < sections.length - 1) {
-                const hr = document.createElement('hr');
-                hr.style.margin = '3rem 0'; hr.style.opacity = '0.1';
-                container.appendChild(hr);
-            }
+        container.innerHTML = '';
+        sections.forEach((_, i) => {
+            renderSection(i);
+            const btn = document.getElementById(`next-btn-${i}`);
+            if (btn) btn.remove();
         });
+        document.querySelectorAll('button.btn-primary').forEach(b => b.style.display = "none");
+        document.querySelectorAll('.interleaved-exercise').forEach(w => w.style.borderColor = "var(--success)");
         document.getElementById('final-footer').style.display = 'block';
     }
 
@@ -389,9 +491,9 @@
             const result = await response.json();
             if (result.xp_gained > 0) {
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-                setTimeout(() => { window.location.href = `/subjects/{{ course.subject_id }}`; }, 2000);
+                setTimeout(() => { window.location.href = `/subjects/{{ course.subject_id }}#{{ step.id }}`; }, 2000);
             } else {
-                window.location.href = `/subjects/{{ course.subject_id }}`;
+                window.location.href = `/subjects/{{ course.subject_id }}#{{ step.id }}`;
             }
         } catch (e) {
             console.error(e);

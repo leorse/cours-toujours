@@ -5,11 +5,14 @@ from src.models import Course
 
 class TestGenerator:
     @staticmethod
-    def generate_step_exercises(course: Course, step_type: str, count: int = 10) -> List[Dict[str, Any]]:
+    def generate_step_exercises(course: Any, step_type: str, count: int = 10) -> List[Dict[str, Any]]:
         """
         Génère des exercices pour une étape spécifique d'un cours.
         """
-        gen_type = course.generator_type
+        if isinstance(course, dict):
+            gen_type = course.get("generator_type", "multiplication")
+        else:
+            gen_type = getattr(course, "generator_type", "multiplication")
         
         # Déterminer la difficulté en fonction du type de step
         difficulty = "medium"

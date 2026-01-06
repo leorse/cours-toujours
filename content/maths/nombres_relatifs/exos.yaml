@@ -1,11 +1,29 @@
 exercices:
   # --- EXERCICES DE COURS / VOCABULAIRE ---
-  - id: math_div_qcm_01
+  - id: math_div_qcm_vocab_01
     type: qcm
     tags: ["math", "arithmetique", "theorie", "vocabulaire"]
-    question: "Dans l'égalité $45 = 9 \times 5$, comment appelle-t-on le chiffre 9 ?"
+    question: 'Dans l''égalité $45 = 9 \times 5 + 7$, comment appelle-t-on le chiffre 9 ?'
     options: ["Le dividende", "Le quotient", "Le diviseur"]
     answer: "Le diviseur"
+  - id: math_div_qcm_vocab_02
+    type: qcm
+    tags: ["math", "arithmetique", "theorie", "vocabulaire"]
+    question: 'Dans l''égalité $45 = 9 \times 5 + 7$, comment appelle-t-on le chiffre 5 ?'
+    options: ["Le dividende", "Le quotient", "Le diviseur"]
+    answer: "Le quotient"
+  - id: math_div_qcm_vocab_03
+    type: qcm
+    tags: ["math", "arithmetique", "theorie", "vocabulaire"]
+    question: 'Dans l''égalité $45 = 9 \times 5 + 7$, comment appelle-t-on le chiffre 7 ?'
+    options: ["Le reste", "Le quotient", "Le diviseur"]
+    answer: "Le reste"
+  - id: math_div_qcm_vocab_04
+    type: qcm
+    tags: ["math", "arithmetique", "theorie", "vocabulaire"]
+    question: 'Dans l''égalité $45 = 9 \times 5 + 7$, comment appelle-t-on le chiffre 45 ?'
+    options: ["Le dividende", "Le quotient", "Le diviseur"]
+    answer: "Le dividende"
 
   # --- EXERCICES SUR LES CRITÈRES ---
   - id: math_div_crit_01
@@ -19,7 +37,7 @@ exercices:
   - id: math_rel_calc_01
     type: qcm # Ou numeric_input selon ton implémentation
     tags: ["math", "relatifs", "calcul", "signes"]
-    question: "Calcule le résultat de $(-7) \times (+4)$"
+    question: 'Calcule le résultat de $(-7) \times (+4)$'
     options: ["+28", "-28", "-11", "+11"]
     answer: "-28"
 
@@ -35,4 +53,18 @@ exercices:
         color: "#3498db"
     question: "Si Tom multiplie 4 nombres négatifs entre eux, le niveau de sa jauge de réussite sera-t-il positif (+) ou négatif (-) ?"
     options: ["Positif (+)", "Négatif (-)"]
-    answer: "Positif (+)"
+  # --- EXERCICE MULTISELECT DIVISIBILITE ---
+  - id: math_div_multi_2_01
+    type: "multiselect"
+    tags: ["math", "arithmetique", "calcul", "divisibilite"]
+    question: "Quels sont les nombres divisibles par 2 ?"
+    options: ["42", "75", "96", "12365", "87", "21"]
+    answer: ["42", "96"]
+    
+  - id: math_div_cloze_01
+    type: drag_drop
+    tags: ["math", "arithmetique", "theorie", "vocabulaire"]
+    question: "Complète l'égalité avec les bons termes :"
+    template: "??? = ??? x ??? + ???"
+    options: ["reste", "dividende", "diviseur", "quotient"]
+    answer: ["dividende", "diviseur", "quotient", "reste"]

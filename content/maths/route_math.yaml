@@ -1,0 +1,92 @@
+title: "Mathématiques"
+road:
+  - id: artih_mul_cours_01
+    title: "Arithmétique"
+    subtitle: "Les multiplications"
+    type: "cours"
+    page: "calculs/multiplications.md"
+  - id: artih_mul_test_table1
+    title: "Arithmétique"
+    subtitle: "Test Table de 1"
+    type: "page"
+    ref_id: "mul_page_table_1"
+  - id: artih_mul_test_table2
+    title: "Arithmétique"
+    subtitle: "Test Table de 2"
+    type: "page"
+    ref_id: "mul_page_table_2"
+  - id: artih_mul_test_table3
+    title: "Arithmétique"
+    subtitle: "Test Table de 3"
+    type: "page"
+    ref_id: "mul_page_table_3"
+  - id: artih_mul_test_table4
+    title: "Arithmétique"
+    subtitle: "Test Table de 4"
+    type: "page"
+    ref_id: "mul_page_table_4"
+  - id: artih_mul_test_table5
+    title: "Arithmétique"
+    subtitle: "Test Table de 5"
+    type: "page"
+    ref_id: "mul_page_table_5"
+  - id: artih_mul_test_table6
+    title: "Arithmétique"
+    subtitle: "Test Table de 6"
+    type: "page"
+    ref_id: "mul_page_table_6"
+  - id: artih_mul_test_table7
+    title: "Arithmétique"
+    subtitle: "Test Table de 7"
+    type: "page"
+    ref_id: "mul_page_table_7"
+  - id: artih_mul_test_table8
+    title: "Arithmétique"
+    subtitle: "Test Table de 8"
+    type: "page"
+    ref_id: "mul_page_table_8"
+  - id: artih_mul_test_table9
+    title: "Arithmétique"
+    subtitle: "Test Table de 9"
+    type: "page"
+    ref_id: "mul_page_table_9"
+  - id: artih_mul_test_table10
+    title: "Arithmétique"
+    subtitle: "Test Table de 10"
+    type: "page"
+    ref_id: "mul_page_table_10"
+  - id: artih_cours_01
+    title: "Arithmétique"
+    subtitle: "Les divisions"
+    type: "cours"
+    page: "nombres_relatifs/arthimetique_relatif.md"
+  - id: artih_cours_02
+    title: "Arithmétique"
+    subtitle: "Poser une division"
+    type: "cours"
+    page: "nombres_relatifs/poser_une_division.md"
+  - id: artih_cours_03
+    title: "Arithmétique"
+    subtitle: "Les critères de divisibilité"
+    type: "cours"
+    page: "nombres_relatifs/critere_divisibilite.md"
+  - id: artih_cours_04
+    title: "Arithmétique"
+    subtitle: "Les facteurs"
+    type: "cours"
+    page: "nombres_relatifs/les_facteurs.md"    
+  - id: artih_cours_05
+    title: "Arithmétique"
+    subtitle: "Multiplier les relatifs"
+    type: "cours"
+    page: "nombres_relatifs/nombres_relatif_multiplications.md"    
+  - id: test_exos3
+    title: "Test"
+    subtitle: "Exos 3"
+    type: "page"
+    ref_id: "mul_page_02"
+  - id: test_exos4
+    title: "Test"
+    subtitle: "Exos 4"
+    type: "flash"
+    ref_id: "mul_flash_01"

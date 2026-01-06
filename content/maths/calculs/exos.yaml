@@ -1,0 +1,119 @@
+exercices:
+  - id: calc_mul_01
+    type: "qcm"
+    question: 'Combien font $8 \times 7$ ?'
+    options: ["49", "54", "56", "63"]
+    answer: "56"
+    tags: ["math", "calcul", "multiplications"]
+  - id: calc_mul_02
+    type: "qcm"
+    question: 'Combien font $3 \times 6$ ?'
+    options: ["12", "16", "18", "24"]
+    answer: "18"
+    tags: ["math", "calcul", "multiplications"]
+  - id: calc_mul_03
+    type: "qcm"
+    question: '$4 \times 5$ est-il égale à $5 \times 4$ ?'
+    options: ["oui", "non"]
+    answer: "oui"
+    tags: ["math", "calcul", "multiplications"]
+  - id: "mul_page_table_1"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 1
+        weight: 10
+  - id: "mul_page_table_2"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 2
+        weight: 10
+  - id: "mul_page_table_3"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 3
+        weight: 10
+  - id: "mul_page_table_4"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 4
+        weight: 10
+  - id: "mul_page_table_5"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 5
+        weight: 10
+  - id: "mul_page_table_6"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 6
+        weight: 10
+  - id: "mul_page_table_7"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 7
+        weight: 10
+  - id: "mul_page_table_8"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 8
+        weight: 10
+  - id: "mul_page_table_9"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 9
+        weight: 10
+  - id: "mul_page_table_10"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: 10
+        weight: 10

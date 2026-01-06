@@ -7,7 +7,8 @@ class MathGenerator(ExerciseGenerator):
     def generate(self, config: Dict[str, Any], count: int = 1) -> List[Dict[str, Any]]:
         subtype = config.get("subtype", "addition") # addition, multiplication...
         difficulty = config.get("difficulty", "medium")
-        focus = config.get("focus") # Optional: int, e.g. 7 for table of 7
+        # Use 'table' if present, otherwise 'focus'
+        focus = config.get("table", config.get("focus"))
 
         exercises = []
         for _ in range(count):
