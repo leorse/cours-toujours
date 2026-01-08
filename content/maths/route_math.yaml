@@ -55,6 +55,11 @@ road:
     subtitle: "Test Table de 10"
     type: "page"
     ref_id: "mul_page_table_10"
+  - id: artih_mul_test_table_tout_simple
+    title: "Arithmétique"
+    subtitle: "Test avec toutes les tables"
+    type: "page"
+    ref_id: "mul_page_table_tout_simple"
   - id: artih_cours_01
     title: "Arithmétique"
     subtitle: "Les divisions"
