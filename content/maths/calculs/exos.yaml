@@ -21,99 +21,120 @@ exercices:
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_1"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 1
+        table: [1]
         weight: 10
   - id: "mul_page_table_2"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_2"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 2
+        table: [2]
         weight: 10
   - id: "mul_page_table_3"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_3"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 3
+        table: [3]
         weight: 10
   - id: "mul_page_table_4"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_4"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 4
+        table: [4]
         weight: 10
   - id: "mul_page_table_5"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_5"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 5
+        table: [5]
         weight: 10
   - id: "mul_page_table_6"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_6"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 6
+        table: [6]
         weight: 10
   - id: "mul_page_table_7"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_7"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 7
+        table: [7]
         weight: 10
   - id: "mul_page_table_8"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_8"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 8
+        table: [8]
         weight: 10
   - id: "mul_page_table_9"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_9"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 9
+        table: [9]
         weight: 10
   - id: "mul_page_table_10"
     mode: "page"
     difficulty: "simple"
     count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_10"]
     generators:
       - type: "calcul"
         subtype: "multiplication"
         difficulty: "simple"
-        table: 10
+        table: [10]
         weight: 10
+  - id: "mul_page_table_tout_simple"
+    mode: "page"
+    difficulty: "simple"
+    count: 10
+    tags: ["math", "calcul", "multiplications", "simple", "table_tout"]
+    generators:
+      - type: "calcul"
+        subtype: "multiplication"
+        difficulty: "simple"
+        table: [1,2,3,4,5,6,7,8,9,10]
+        weight: 10   
