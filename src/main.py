@@ -11,8 +11,9 @@ from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, Ro
 from src.content_manager import ContentManager
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
-from src.models import ExerciseLog, Exercise
+from src.models import ExerciseLog, Exercise, ExerciseTemplate
 from src.generators import ExerciseFactory
+from src.exercise_engine import ExerciseEngine
 import re
 import time
 
@@ -198,7 +199,7 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
                 # We could redirect here if we wanted to enforce strictly
                 pass
 
-    if step.type == "theory" or (step.type == "cours" and step.page_file):
+    if step.type == "cours":
         progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id,
             RoadStepProgress.step_id == step_id
@@ -207,25 +208,24 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
         # Charger le markdown
         content = ""
         exercises = []
-        if step.page_file:
-            # ContentManager handles file loading
-            content = ContentManager.get_step_content(step.subject_id, step.page_file)
+        if step.content_file:
+            content = ContentManager.get_step_content(step.subject_id, step.content_file)
             if content:
                     # Parser les exercices &&id&&
-                    # On va transformer "&&id&&" en "&&&" pour le split progressif du frontend
-                    # et extraire les données de l'exercice
                     def replace_exo(match):
                         ex_id = match.group(1)
-                        ex = ContentManager.get_exercise(ex_id)
-                        if ex:
-                            exercises.append(ex.data)
+                        # Pour les cours, on peut encore avoir des exercices statiques ou des templates
+                        template = ContentManager.get_template(ex_id)
+                        if template:
+                            ex_data = ExerciseEngine.generate_exercise(template)
+                            exercises.append(ex_data)
+                            return f"&&{ex_data['id']}&&"
                         else:
                             exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé", "id": ex_id})
-                        return match.group(0) # Preserve for unit.html to find it
+                            return match.group(0)
                     
                     content = re.sub(r"&&(?!&)(.+?)&&", replace_exo, content)
         
-        # On crée un faux objet course pour unit.html qui attend course.content_markdown
         dummy_course = {
             "title": step.title,
             "subject_id": step.subject_id,
@@ -244,27 +244,48 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
         # Render exercise page (test.html style)
         exercises = []
         
-        if step.ref_id:
-            # Exercice direct référencé par son ID
-            ex = ContentManager.get_exercise(step.ref_id)
-            if ex:
-                # Si c'est un générateur d'exercices (mode page/flash)
-                if ex.data.get("mode") in ["page", "flash"]:
-                    recipe = ex.data.get("generators", [])
-                    total_count = ex.data.get("count", 10)
-                    exercises = ExerciseFactory.create_exercises(recipe, total_count)
+        if step.type in ["practice", "exam", "sequence"]:
+            # Logic de sélection
+            selection = step.selection
+            if selection:
+                # Si c'est une liste de sélections (ex: exam)
+                if isinstance(selection, list):
+                    for sel_item in selection:
+                        target = sel_item.get("target", [])
+                        count = sel_item.get("count", 5)
+                        diff = sel_item.get("difficulty")
+                        
+                        templates_list = ContentManager.select_templates(target, diff)
+                        if templates_list:
+                            for _ in range(count):
+                                t = random.choice(templates_list)
+                                exercises.append(ExerciseEngine.generate_exercise(t))
                 else:
-                    # C'est un exercice statique direct
-                    exercises = [ex.data]
+                    # Sélection unique (practice simple)
+                    target = selection.get("target", [])
+                    count = selection.get("count", 10)
+                    diff = selection.get("difficulty")
+                    
+                    templates_list = ContentManager.select_templates(target, diff)
+                    if templates_list:
+                        for _ in range(count):
+                            t = random.choice(templates_list)
+                            exercises.append(ExerciseEngine.generate_exercise(t))
         
-        # Fallback pour les anciens générateurs si rien n'est trouvé
+        elif step.type == "reinforcement":
+            from src.reinforcement_engine import ReinforcementEngine
+            exercises = ReinforcementEngine.generate_reinforcement_exercises(
+                session, 
+                user.id, 
+                step.scope or step.subject_id, 
+                count=10
+            )
+
         if not exercises:
-             count = 20 if step.type == "validation" else 10
-             # Note: TestGenerator attend un objet Course, on lui en donne un minimal
-             dummy_course = type('obj', (object,), {'generator_type': 'multiplication'})
-             exercises = TestGenerator.generate_step_exercises(dummy_course, step.type, count=count)
+             # Fallback
+             exercises = []
         
-        if step.type == "flash":
+        if step.type == "flash": # Flash peut être un type spécial si souhaité, sinon practice
             return templates.TemplateResponse("flash.html", {
                 "request": request,
                 "user": user,

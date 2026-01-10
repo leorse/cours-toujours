@@ -18,7 +18,7 @@ Peu importe l'ordre des nombres, le résultat est le même. C'est très pratique
 
 > *Exemple : $4\times 3=12$ est égal à $3\times 4=12$.*
 
-&&calc_mul_03&&
+&&gen_mul_cours_01&&
 
 ---
 
@@ -75,7 +75,7 @@ Voici les tables présentées de manière claire.
 * **La table de 10 :** Il suffit d'ajouter un **0** à la fin du nombre multiplié.
   * Exemple :  $10\times 4=40$.
 
-&&calc_mul_01&&
+&&gen_mul_cours_02&&
 
 &&calc_mul_02&&
 

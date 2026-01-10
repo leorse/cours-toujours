@@ -1,0 +1,100 @@
+# --- MODÈLES DYNAMIQUES (Calcul pur) ---
+generators:
+  - id: gen_mul_basic
+    tags: ["math.calcul.mul"]
+    difficulty: 1
+    vars:
+      a: { min: 1, max: 10 }
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+      logic: "{a} * {b}"
+      explanation: "On multiplie {a} par {b}."
+  - id: gen_mul_cours_01
+    tags: ["math.calcul.mul.proprietes", "format.theory"]
+    difficulty: 1
+    interaction: "qcm"
+    multiple: true  # Indique au front-end d'utiliser des cases à cocher (checkboxes)
+    vars:
+      a: { min: 2, max: 9 }
+      b: { min: 2, max: 9 }
+    content:
+      question: "{a} x {b} est-il égal à {b} x {a} ?"
+      # Liste des options proposées à l'élève
+      options: 
+        - "Oui, car la multiplication est commutative."
+        - "Non, l'ordre des chiffres change le résultat."
+        - "Oui, le résultat sera le même dans les deux cas."
+        - "Cela ne fonctionne que pour les additions."
+      # Index des bonnes réponses (ici la 1ère et la 3ème)
+      answer: [0, 2] 
+      explanation: "La multiplication est **commutative** : on peut inverser l'ordre des nombres sans changer le résultat. {a} x {b} et {b} x {a} font tous les deux le même total."
+  - id: gen_mul_cours_02
+    tags: ["math.calcul.mul.proprietes", "format.theory"]
+    difficulty: 1
+    interaction: "qcm"
+    multiple: false  # Indique au front-end d'utiliser des cases à cocher (checkboxes)
+    vars:
+      a: { min: 2, max: 9 }
+      b: { min: 2, max: 9 }
+    content:
+      question: "Combien font {a} x {b} ?"
+      # Liste des options proposées à l'élève
+      options: 
+        - "[[ {a} + 10 ]]"
+        - "[[ {a} * {b} ]]"
+        - "[[ {b} + 10 ]]"
+        - "[[ {a} + {b} ]]"
+      answer: [1]
+      explanation: "La réponse est {a}*{b}"
+  - id: gen_mul_table_1
+    tags: ["math.calcul.mul.table_1"]
+    difficulty: 1
+    vars:
+      a: 1
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+      logic: "{a} * {b}"
+
+  - id: gen_mul_table_2
+    tags: ["math.calcul.mul.table_2"]
+    difficulty: 1
+    vars:
+      a: 2
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+      logic: "{a} * {b}"
+
+  # ... On pourrait en générer d'autres ou avoir un truc plus intelligent dans content_manager
+  # Mais pour l'exemple, on suit le format YAML donné.
+
+# --- MODÈLES DE PROBLÈMES (Texte & Logique) ---
+templates:
+  - id: template_bus_logic
+    tags: ["math.calcul.mul", "format.word_problem", "context.transport"]
+    difficulty: 2
+    vars:
+      nb_bus: { min: 3, max: 7 }
+      sieges: [25, 30, 45, 50]
+    content:
+      question: "La ville a acheté {nb_bus} nouveaux bus. Chaque bus possède {sieges} sièges. Combien de passagers peuvent s'asseoir au total ?"
+      logic: "{nb_bus} * {sieges}"
+      unit: "passagers"
+      explanation: "On multiplie le nombre de bus ({nb_bus}) par la capacité de chacun ({sieges})."
+
+  - id: template_billes_complex
+    tags: ["math.calcul.mul", "math.calcul.add", "format.word_problem", "logic.multi_step"]
+    difficulty: 3
+    vars:
+      cap_sac: [20, 30, 50]
+      pleins: { min: 3, max: 6 }
+      moitie: [2, 4]
+    content:
+      question: |
+        Un sac de billes contient {cap_sac} billes. 
+        Tu as {pleins} sacs pleins et {moitie} sacs à moitié vides.
+        Combien as-tu de billes au total ?
+      logic: "({pleins} * {cap_sac}) + ({moitie} * ({cap_sac} / 2))"
+      unit: "billes"

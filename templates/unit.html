@@ -273,7 +273,7 @@
                 ${isMulti ? '<p style="font-size: 0.7rem; color: var(--secondary); margin-bottom: 1rem;">(Plusieurs réponses possibles)</p>' : ''}
                 <div class="options-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
                     ${ex.options.map(opt => `
-                        <button class="option-btn" onclick="selectOptionById(this, '${exId}', '${opt}')">${opt}</button>
+                        <button class="option-btn" onclick="selectOptionById(this, '${exId}', '${opt.replace(/'/g, "\\'")}')">${opt}</button>
                     `).join('')}
                 </div>
             `;

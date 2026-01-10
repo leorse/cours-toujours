@@ -1,92 +1,52 @@
-title: "Mathématiques"
+title: "Maîtrise des Mathématiques"
 road:
-  - id: artih_mul_cours_01
-    title: "Arithmétique"
-    subtitle: "Les multiplications"
+  # 1. Apprentissage théorique
+  - id: intro_mul
+    title: "Le Concept de Multiplication"
     type: "cours"
-    page: "calculs/multiplications.md"
-  - id: artih_mul_test_table1
-    title: "Arithmétique"
-    subtitle: "Test Table de 1"
-    type: "page"
-    ref_id: "mul_page_table_1"
-  - id: artih_mul_test_table2
-    title: "Arithmétique"
-    subtitle: "Test Table de 2"
-    type: "page"
-    ref_id: "mul_page_table_2"
-  - id: artih_mul_test_table3
-    title: "Arithmétique"
-    subtitle: "Test Table de 3"
-    type: "page"
-    ref_id: "mul_page_table_3"
-  - id: artih_mul_test_table4
-    title: "Arithmétique"
-    subtitle: "Test Table de 4"
-    type: "page"
-    ref_id: "mul_page_table_4"
-  - id: artih_mul_test_table5
-    title: "Arithmétique"
-    subtitle: "Test Table de 5"
-    type: "page"
-    ref_id: "mul_page_table_5"
-  - id: artih_mul_test_table6
-    title: "Arithmétique"
-    subtitle: "Test Table de 6"
-    type: "page"
-    ref_id: "mul_page_table_6"
-  - id: artih_mul_test_table7
-    title: "Arithmétique"
-    subtitle: "Test Table de 7"
-    type: "page"
-    ref_id: "mul_page_table_7"
-  - id: artih_mul_test_table8
-    title: "Arithmétique"
-    subtitle: "Test Table de 8"
-    type: "page"
-    ref_id: "mul_page_table_8"
-  - id: artih_mul_test_table9
-    title: "Arithmétique"
-    subtitle: "Test Table de 9"
-    type: "page"
-    ref_id: "mul_page_table_9"
-  - id: artih_mul_test_table10
-    title: "Arithmétique"
-    subtitle: "Test Table de 10"
-    type: "page"
-    ref_id: "mul_page_table_10"
-  - id: artih_cours_01
-    title: "Arithmétique"
-    subtitle: "Les divisions"
-    type: "cours"
-    page: "nombres_relatifs/arthimetique_relatif.md"
-  - id: artih_cours_02
-    title: "Arithmétique"
-    subtitle: "Poser une division"
-    type: "cours"
-    page: "nombres_relatifs/poser_une_division.md"
-  - id: artih_cours_03
-    title: "Arithmétique"
-    subtitle: "Les critères de divisibilité"
-    type: "cours"
-    page: "nombres_relatifs/critere_divisibilite.md"
-  - id: artih_cours_04
-    title: "Arithmétique"
-    subtitle: "Les facteurs"
-    type: "cours"
-    page: "nombres_relatifs/les_facteurs.md"    
-  - id: artih_cours_05
-    title: "Arithmétique"
-    subtitle: "Multiplier les relatifs"
-    type: "cours"
-    page: "nombres_relatifs/nombres_relatif_multiplications.md"    
-  - id: test_exos3
-    title: "Test"
-    subtitle: "Exos 3"
-    type: "page"
-    ref_id: "mul_page_02"
-  - id: test_exos4
-    title: "Test"
-    subtitle: "Exos 4"
-    type: "flash"
-    ref_id: "mul_flash_01"
+    content: "calculs/multiplications.md"
+
+  # 2. Les Tables de 1 à 10 (Expansion automatique)
+  - id: sequence_tables
+    type: "sequence"
+    repeat: 10
+    title: "Entraînement : Table de {index}"
+    step_config:
+      type: "practice"
+      selection:
+        target: ["math.calcul.mul.table_{index}"]
+        count: 10
+        difficulty: 1
+
+  # 3. Consolidation Niveau Moyen (Tables mixées + Nombres plus grands)
+  - id: practice_mixed_med
+    title: "Vitesse et Précision (Moyen)"
+    type: "practice"
+    selection:
+      target: ["math.calcul.mul"]
+      count: 15
+      difficulty: 2
+
+  # 4. Problèmes de la vie réelle (Dynamiques)
+  - id: practice_word_problems
+    title: "Défis Logiques"
+    type: "practice"
+    selection:
+      target: ["math.calcul.mul", "format.word_problem"]
+      count: 5
+      difficulty: 2
+
+  # 5. Étape de Renforcement (S'adapte aux erreurs de l'élève)
+  - id: reinforcement_zone
+    title: "Révisions Personnalisées"
+    type: "reinforcement"
+    scope: "math.calcul.mul"
+    strategy: "weakest_points"
+
+  # 6. Examen Final
+  - id: final_exam
+    title: "Examen de Fin de Module"
+    type: "exam"
+    selection:
+      - { target: ["math.calcul.mul"], count: 10, difficulty: 2 }
+      - { target: ["format.word_problem"], count: 5, difficulty: 3 }

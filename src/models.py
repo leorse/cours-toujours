@@ -24,17 +24,39 @@ class Exercise(SQLModel):
     subject_id: str
     data: Dict[str, Any] = {}
 
+class ExerciseTemplate(SQLModel):
+    id: str
+    tags: List[str] = []
+    difficulty: int = 1
+    vars: Dict[str, Any] = {}
+    content: Dict[str, Any] = {}
+    logic: Optional[str] = None
+    render_type: Optional[str] = None
+    interaction: Optional[str] = "input"
+    multiple: bool = False
+    type: str = "template" # "template" or "math_engine"
+
 class RoadStep(SQLModel):
     id: str # course_id_theory, course_id_simple, etc.
     title: str
     subtitle: Optional[str] = None
-    type: str # theory, validation, practice_simple, practice_medium, practice_hard, flash, page
-    order: int # Global order on the road
+    type: str # cours, practice, reinforcement, exam, sequence
+    order: int
     
-    ref_id: Optional[str] = None # ID of the exercise if type is exercise-direct
-    page_file: Optional[str] = None # Filename of the markdown page if type is theory
+    # Configuration pour "cours"
+    content_file: Optional[str] = None # Path to md file
     
-    course_id: Optional[str] = None
+    # Configuration pour "practice" et "exam"
+    selection: Optional[Any] = None # List or Dict for exercise selection
+    
+    # Configuration pour "sequence"
+    repeat: Optional[int] = None
+    step_config: Optional[Dict[str, Any]] = None
+    
+    # Configuration pour "reinforcement"
+    scope: Optional[str] = None
+    strategy: Optional[str] = "weakest_points"
+    
     subject_id: str
     activated: bool = False
 
