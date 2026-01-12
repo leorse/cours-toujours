@@ -15,7 +15,7 @@ road:
       type: "practice"
       selection:
         target: ["math.calcul.mul.table_{index}"]
-        count: 10
+        count: 2
         difficulty: 1
 
   # 3. Consolidation Niveau Moyen (Tables mixées + Nombres plus grands)
@@ -24,7 +24,7 @@ road:
     type: "practice"
     selection:
       target: ["math.calcul.mul"]
-      count: 15
+      count: 2
       difficulty: 2
 
   # 4. Problèmes de la vie réelle (Dynamiques)

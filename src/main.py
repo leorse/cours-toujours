@@ -16,6 +16,7 @@ from src.generators import ExerciseFactory
 from src.exercise_engine import ExerciseEngine
 import re
 import time
+import random
 
 def smart_compare(user_val, correct_val, ex_type: Optional[str] = None):
     """
@@ -355,10 +356,17 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
     if not user or not step:
         raise HTTPException(status_code=404, detail="Not found")
 
+    # Fetch existing progress or initialize as None
+    progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.step_id == step.id
+    )).first()
+
     xp_gained = 0
     results = {}
     first_time = False
 
+    # 1. Evaluate Exercises
     for exercise in submission.generated_exercises:
         ex_id = exercise.get("id")
         ex_type = exercise.get("type")
@@ -368,18 +376,12 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         is_correct = smart_compare(user_val, correct_val, ex_type=ex_type)
         results[ex_id] = { "correct": is_correct, "correct_answer": correct_val }
         
-        # --- LOGGING ---
+        # Logging
         try:
-             # Extract tag if present
              tag = exercise.get("tag", "unknown")
-             
              log_entry = ExerciseLog(
-                 user_id=user.id,
-                 tag=tag,
-                 question_id=ex_id,
-                 is_correct=is_correct,
-                 timestamp=time.time(),
-                 difficulty=exercise.get("meta", {}).get("difficulty", "unknown") 
+                 user_id=user.id, tag=tag, question_id=ex_id, is_correct=is_correct,
+                 timestamp=time.time(), difficulty=exercise.get("meta", {}).get("difficulty", "unknown") 
              )
              session.add(log_entry)
         except Exception as e:
@@ -388,70 +390,46 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         if is_correct:
             xp_gained += 10
 
-    # Calculate Mastery for Flash Steps OR Validation Steps
-    # User wants mastery tiers for "tests" (validation) and "flash".
-    if step.type.startswith("flash") or step.type == "validation":
-        total_questions = len(submission.generated_exercises)
-        score = sum(1 for r in results.values() if r["correct"])
-        
-        progress = session.exec(select(RoadStepProgress).where(
-            RoadStepProgress.user_id == user.id,
-            RoadStepProgress.step_id == step.id
-        )).first()
-        
+    # 2. Update Progress Based on Step Type
+    total_questions = len(submission.generated_exercises)
+    nb_correct = sum(1 for r in results.values() if r["correct"])
+    
+    is_mastery_step = step.type.startswith("flash") or step.type == "validation"
+    passed = total_questions > 0 and nb_correct >= total_questions / 2
+
+    if is_mastery_step:
         if not progress:
             progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=False, mastery=0)
             session.add(progress)
             first_time = True
             
-        current_mastery = progress.mastery
-        
-        if score == total_questions:
-            # Streak +1 (Max 3)
-            current_mastery = min(3, current_mastery + 1)
+        # Mastery logic: Streak or drop
+        if nb_correct == total_questions:
+            progress.mastery = min(3, progress.mastery + 1)
         else:
-            # Any error -> Drop by 1 (Min 0)
-             current_mastery = max(0, current_mastery - 1)
+            progress.mastery = max(0, progress.mastery - 1)
             
-        progress.mastery = current_mastery
-        
-        # Mark completed logic (e.g. > 50%)
-        # For validation, maybe we want strict 50%? kept same.
-        if score >= total_questions / 2:
-            if not progress.is_completed:
-                 progress.is_completed = True
-                 first_time = True
+        if passed and not progress.is_completed:
+            progress.is_completed = True
+            first_time = True
         
         progress.answers = submission.answers
         session.add(progress)
     
-    else:
-        # Standard logic (Practice, etc.) - No Mastery tracking requested yet, or simple.
-        # Keeping simple completion for practice.
-        nb_correct = len([r for r in results.values() if r["correct"]])
-         
-        if len(submission.generated_exercises) > 0 and nb_correct >= len(submission.generated_exercises) / 2:
-            progress = session.exec(select(RoadStepProgress).where(
-                RoadStepProgress.user_id == user.id, 
-                RoadStepProgress.step_id == step.id
-            )).first()
-            
-            if not progress:
-                progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True)
-                session.add(progress)
+    elif passed:
+        # Standard practice
+        if not progress:
+            progress = RoadStepProgress(user_id=user.id, step_id=step.id, is_completed=True, mastery=0)
+            session.add(progress)
+            first_time = True
+        else:
+            if not progress.is_completed:
+                progress.is_completed = True
                 first_time = True
-            else:
-                if not progress.is_completed:
-                    progress.is_completed = True
-                    first_time = True
-                session.add(progress)
-            
-            # Update answers
-            if progress:
-                progress.answers = submission.answers
-                session.add(progress)
+            progress.answers = submission.answers
+            session.add(progress)
 
-    # Award XP if first time completed (or first time played handling above)
+    # 3. Award XP
     if first_time and xp_gained > 0:
         user.total_xp += xp_gained
         session.add(user)
@@ -469,6 +447,7 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         session.add(sub_prog)
 
     session.commit()
+    
     return {
         "xp_gained": xp_gained if first_time else 0, 
         "results": results, 

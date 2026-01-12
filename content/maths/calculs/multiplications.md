@@ -77,5 +77,5 @@ Voici les tables présentées de manière claire.
 
 &&gen_mul_cours_02&&
 
-&&calc_mul_02&&
+&&gen_mul_cours_03&&
 
