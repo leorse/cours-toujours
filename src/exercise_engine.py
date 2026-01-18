@@ -64,15 +64,19 @@ class ExerciseEngine:
 
         # 3. Évaluation de la logique ou récupération de la réponse fixe
         answer = None
-        if template.logic:
+        
+        # Priority: template.logic > content.logic > content.answer
+        raw_logic = template.logic or template.content.get("logic")
+
+        if raw_logic:
             # On remplace {var} par leur valeur
-            logic_str = template.logic.format(**variables)
             try:
+                logic_str = str(raw_logic).format(**variables)
                 answer = eval(logic_str, {"__builtins__": {}}, variables)
                 if isinstance(answer, float):
                     answer = int(answer) if answer.is_integer() else round(answer, 2)
             except Exception as e:
-                print(f"❌ Erreur évaluation logic '{logic_str}': {e}")
+                print(f"❌ Erreur évaluation logic '{raw_logic}': {e}")
                 answer = "ERROR"
         elif "answer" in content:
             # Réponse statique dans le contenu (ex: QCM)
@@ -102,7 +106,7 @@ class ExerciseEngine:
             "question": content.get("question", ""),
             "options": content.get("options", []),
             # On ne force pas le string si c'est une liste (pour smart_compare)
-            "answer": answer if isinstance(answer, list) else str(answer),
+            "answer": answer if (isinstance(answer, list) or answer is None) else str(answer),
             "explanation": content.get("explanation", ""),
             "unit": content.get("unit", ""),
             "variables": variables,

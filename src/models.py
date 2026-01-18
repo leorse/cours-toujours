@@ -59,6 +59,7 @@ class RoadStep(SQLModel):
     
     subject_id: str
     activated: bool = False
+    pages: List[Dict[str, Any]] = []
 
 # --- Modèles de Base de Données (Persistance Utilisateur) ---
 

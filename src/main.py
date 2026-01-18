@@ -22,7 +22,7 @@ def smart_compare(user_val, correct_val, ex_type: Optional[str] = None):
     """
     Compares two values handling strings vs lists, and fractions/floats.
     """
-    if user_val is None:
+    if user_val is None or correct_val is None:
         return False
         
     # 0. List comparison
@@ -178,7 +178,7 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
     })
 
 @app.get("/step/{step_id}", response_class=HTMLResponse)
-def step_page(step_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def step_page(step_id: str, request: Request, page_idx: int = 0, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/")
         
@@ -186,46 +186,83 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     
-    # Progression check: is the previous step completed or is current step activated?
-    if step.order > 0 and not step.activated and not user.is_admin:
-        all_steps = ContentManager.get_steps_for_subject(step.subject_id)
-        if step.order < len(all_steps):
-            prev_step = all_steps[step.order - 1]
+    # Selection of current page
+    active_page = None
+    if step.pages:
+        if page_idx < 0 or page_idx >= len(step.pages):
+            return RedirectResponse(url=f"/subjects/{step.subject_id}")
+        active_page = step.pages[page_idx]
+    else:
+        # Fallback to single page logic based on step fields
+        active_page = {
+            "type": step.type,
+            "content": step.content_file,
+            "selection": step.selection
+        }
+
+    # Handle Conditions (e.g., first_view)
+    if active_page.get("type") == "dialogue":
+        dialogue_content = ContentManager.get_dialogue(step.subject_id, active_page["content"])
+        if not dialogue_content:
+             # Skip if no dialogue found
+             return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
+        
+        # Check conditions
+        conditions = []
+        for entry in dialogue_content:
+            if "conditions" in entry:
+                if isinstance(entry["conditions"], list):
+                    conditions.extend(entry["conditions"])
+                else:
+                    conditions.append(entry["conditions"])
+        
+        if "first_view" in conditions:
+            # Check if user has already seen this step
             progress = session.exec(select(RoadStepProgress).where(
                 RoadStepProgress.user_id == user.id,
-                RoadStepProgress.step_id == prev_step.id,
-                RoadStepProgress.is_completed == True
+                RoadStepProgress.step_id == step.id
             )).first()
-            if not progress:
-                # We could redirect here if we wanted to enforce strictly
-                pass
+            if progress and progress.is_completed:
+                # Redirect to next page
+                return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
 
-    if step.type == "cours":
+        # If we got here, render dialogue
+        next_url = f"/step/{step_id}?page_idx={page_idx + 1}" if step.pages and page_idx + 1 < len(step.pages) else f"/subjects/{step.subject_id}"
+        return templates.TemplateResponse("dialogue.html", {
+            "request": request,
+            "user": user,
+            "step": step,
+            "dialogue": dialogue_content,
+            "next_url": next_url
+        })
+
+    # Rest of step logic (cours, practice, etc.)
+    page_type = active_page.get("type", "cours")
+    
+    if page_type == "cours":
         progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id,
             RoadStepProgress.step_id == step_id
         )).first()
         
-        # Charger le markdown
         content = ""
         exercises = []
-        if step.content_file:
-            content = ContentManager.get_step_content(step.subject_id, step.content_file)
+        content_file = active_page.get("content")
+        if content_file:
+            content = ContentManager.get_step_content(step.subject_id, content_file)
             if content:
-                    # Parser les exercices &&id&&
-                    def replace_exo(match):
-                        ex_id = match.group(1)
-                        # Pour les cours, on peut encore avoir des exercices statiques ou des templates
-                        template = ContentManager.get_template(ex_id)
-                        if template:
-                            ex_data = ExerciseEngine.generate_exercise(template)
-                            exercises.append(ex_data)
-                            return f"&&{ex_data['id']}&&"
-                        else:
-                            exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé", "id": ex_id})
-                            return match.group(0)
-                    
-                    content = re.sub(r"&&(?!&)(.+?)&&", replace_exo, content)
+                def replace_exo(match):
+                    ex_id = match.group(1)
+                    template = ContentManager.get_template(ex_id)
+                    if template:
+                        ex_data = ExerciseEngine.generate_exercise(template)
+                        exercises.append(ex_data)
+                        return f"&&{ex_data['id']}&&"
+                    else:
+                        exercises.append({"type": "error", "question": f"Exercice {ex_id} non trouvé", "id": ex_id})
+                        return match.group(0)
+                
+                content = re.sub(r"&&(?!&)(.+?)&&", replace_exo, content)
         
         dummy_course = {
             "title": step.title,
@@ -234,46 +271,45 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
             "exercises": exercises
         }
         
+        next_url = f"/step/{step_id}?page_idx={page_idx + 1}" if step.pages and page_idx + 1 < len(step.pages) else None
+
         return templates.TemplateResponse("unit.html", {
             "request": request,
             "user": user,
             "step": step,
             "course": dummy_course,
-            "user_progress": progress
+            "user_progress": progress,
+            "page_idx": page_idx,
+            "next_url": next_url
         })
     else:
-        # Render exercise page (test.html style)
+        # Practice, Exam, etc.
         exercises = []
+        selection = active_page.get("selection")
         
-        if step.type in ["practice", "exam", "sequence"]:
-            # Logic de sélection
-            selection = step.selection
+        if page_type in ["practice", "exam", "sequence", "validation", "flash"]:
             if selection:
-                # Si c'est une liste de sélections (ex: exam)
                 if isinstance(selection, list):
                     for sel_item in selection:
                         target = sel_item.get("target", [])
                         count = sel_item.get("count", 5)
                         diff = sel_item.get("difficulty")
-                        
                         templates_list = ContentManager.select_templates(target, diff)
                         if templates_list:
                             for _ in range(count):
                                 t = random.choice(templates_list)
                                 exercises.append(ExerciseEngine.generate_exercise(t))
                 else:
-                    # Sélection unique (practice simple)
                     target = selection.get("target", [])
                     count = selection.get("count", 10)
                     diff = selection.get("difficulty")
-                    
                     templates_list = ContentManager.select_templates(target, diff)
                     if templates_list:
                         for _ in range(count):
                             t = random.choice(templates_list)
                             exercises.append(ExerciseEngine.generate_exercise(t))
         
-        elif step.type == "reinforcement":
+        elif page_type == "reinforcement":
             from src.reinforcement_engine import ReinforcementEngine
             exercises = ReinforcementEngine.generate_reinforcement_exercises(
                 session, 
@@ -282,25 +318,18 @@ def step_page(step_id: str, request: Request, session: Session = Depends(get_ses
                 count=10
             )
 
-        if not exercises:
-             # Fallback
-             exercises = []
+        next_url = f"/step/{step_id}?page_idx={page_idx + 1}" if step.pages and page_idx + 1 < len(step.pages) else None
         
-        if step.type == "flash": # Flash peut être un type spécial si souhaité, sinon practice
-            return templates.TemplateResponse("flash.html", {
-                "request": request,
-                "user": user,
-                "step": step,
-                "course": {"title": step.title, "subject_id": step.subject_id},
-                "exercises": exercises
-            })
-
-        return templates.TemplateResponse("test.html", {
+        template_name = "flash.html" if page_type == "flash" else "test.html"
+        
+        return templates.TemplateResponse(template_name, {
             "request": request,
             "user": user,
             "step": step,
             "course": {"title": step.title, "subject_id": step.subject_id},
-            "exercises": exercises
+            "exercises": exercises,
+            "page_idx": page_idx,
+            "next_url": next_url
         })
 
 @app.post("/submit_step")
@@ -591,3 +620,79 @@ def admin_invalidate_step(step_id: str, request: Request, session: Session = Dep
         session.commit()
         
     return RedirectResponse(url=f"/subjects/{step.subject_id}", status_code=303)
+
+@app.get("/debug", response_class=HTMLResponse)
+def debug_dashboard(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or not user.is_admin:
+         # For development, allow access even if not admin, or just check if user exists
+         if not user:
+             return RedirectResponse(url="/")
+    
+    users = session.exec(select(User)).all()
+    templates_dict = ContentManager.get_all_templates()
+    subjects = ContentManager.get_all_subjects()
+    
+    # Group templates by subject (based on prefix of ID or subject_id in templates)
+    grouped_templates = {}
+    for t_id, t in templates_dict.items():
+        # Try to find which subject this template belongs to
+        # In this codebase, templates are usually loaded within a subject folder
+        # We'll use a simple heuristic or just group them all
+        subject_id = "global"
+        # Heuristic: check if t_id starts with subject_id
+        for s_id in subjects.keys():
+            if t_id.startswith(s_id):
+                subject_id = s_id
+                break
+        
+        if subject_id not in grouped_templates:
+            grouped_templates[subject_id] = []
+        grouped_templates[subject_id].append(t)
+
+    return templates.TemplateResponse("debug.html", {
+        "request": request,
+        "user": user,
+        "users": users,
+        "grouped_templates": grouped_templates,
+        "subjects": subjects
+    })
+
+@app.get("/debug/test/{mode}/{template_id}", response_class=HTMLResponse)
+def debug_test_exercise(mode: str, template_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/")
+        
+    template = ContentManager.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    exercises = [ExerciseEngine.generate_exercise(template) for _ in range(5)]
+    
+    subject_id = "debug"
+    for s_id in ContentManager.get_all_subjects().keys():
+        if template_id.startswith(s_id):
+            subject_id = s_id
+            break
+
+    dummy_course = {
+        "id": f"debug_{template_id}",
+        "title": f"Test: {template_id}",
+        "subject_id": subject_id
+    }
+    
+    dummy_step = {
+        "id": f"debug_{template_id}",
+        "title": f"Test: {template_id}",
+        "type": mode,
+        "subject_id": subject_id
+    }
+
+    template_name = "test.html" if mode == "practice" else "flash.html"
+    
+    return templates.TemplateResponse(template_name, {
+        "request": request,
+        "user": user,
+        "course": dummy_course,
+        "step": dummy_step,
+        "exercises": exercises
+    })

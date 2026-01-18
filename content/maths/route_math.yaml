@@ -3,8 +3,12 @@ road:
   # 1. Apprentissage théorique
   - id: intro_mul
     title: "Le Concept de Multiplication"
-    type: "cours"
-    content: "calculs/multiplications.md"
+    pages: 
+      - type: dialogue
+        content: "calculs/dialogue_intro.yaml"
+      - type: "cours"
+        content: "calculs/multiplications.md"
+    
 
   # 2. Les Tables de 1 à 10 (Expansion automatique)
   - id: sequence_tables
@@ -21,32 +25,36 @@ road:
   # 3. Consolidation Niveau Moyen (Tables mixées + Nombres plus grands)
   - id: practice_mixed_med
     title: "Vitesse et Précision (Moyen)"
-    type: "practice"
-    selection:
-      target: ["math.calcul.mul"]
-      count: 2
-      difficulty: 2
+    pages:
+      - type: "practice"
+        selection:
+          target: ["math.calcul.mul"]
+          count: 2
+          difficulty: 2
 
   # 4. Problèmes de la vie réelle (Dynamiques)
   - id: practice_word_problems
     title: "Défis Logiques"
-    type: "practice"
-    selection:
-      target: ["math.calcul.mul", "format.word_problem"]
-      count: 5
-      difficulty: 2
+    pages:
+      - type: "practice"
+        selection:
+          target: ["math.calcul.mul", "format.word_problem"]
+          count: 5
+          difficulty: 2
 
   # 5. Étape de Renforcement (S'adapte aux erreurs de l'élève)
   - id: reinforcement_zone
     title: "Révisions Personnalisées"
-    type: "reinforcement"
-    scope: "math.calcul.mul"
-    strategy: "weakest_points"
+    pages:
+      - type: "reinforcement"
+        scope: "math.calcul.mul"
+        strategy: "weakest_points"
 
   # 6. Examen Final
   - id: final_exam
     title: "Examen de Fin de Module"
-    type: "exam"
-    selection:
-      - { target: ["math.calcul.mul"], count: 10, difficulty: 2 }
-      - { target: ["format.word_problem"], count: 5, difficulty: 3 }
+    pages:
+      - type: "exam"
+        selection:
+          - { target: ["math.calcul.mul"], count: 10, difficulty: 2 }
+          - { target: ["format.word_problem"], count: 5, difficulty: 3 }

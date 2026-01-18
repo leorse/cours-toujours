@@ -491,9 +491,11 @@
             const result = await response.json();
             if (result.xp_gained > 0) {
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-                setTimeout(() => { window.location.href = `/subjects/{{ course.subject_id }}#{{ step.id }}`; }, 2000);
+                setTimeout(() => {
+                    window.location.href = "{{ next_url if next_url else '/subjects/' + course.subject_id + '#' + step.id }}";
+                }, 2000);
             } else {
-                window.location.href = `/subjects/{{ course.subject_id }}#{{ step.id }}`;
+                window.location.href = "{{ next_url if next_url else '/subjects/' + course.subject_id + '#' + step.id }}";
             }
         } catch (e) {
             console.error(e);

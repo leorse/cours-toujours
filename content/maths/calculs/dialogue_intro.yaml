@@ -1,0 +1,19 @@
+dialogue:
+  - id: intro_gribouille
+  - conditions: first_view
+  - page: "Bienvenue dans ton parcours de **Mathématiques**, Un voyage au cœur de la base de toutes les **sciences**."
+    image: "gribouille_coucou.png"
+  - page: "On a un beau programme devant nous, conçu pour faire de toi un expert de la **précision**."
+    image: "gribouille_coucou.png"
+  - page: "Les bases du calcul : Maîtriser les nombres relatifs et les fractions pour ne plus jamais douter de tes résultats."
+    image: "gribouille_coucou.png"
+  - page: "La logique : Apprendre à résoudre des équations pour trouver des solutions à chaque problème."
+    image: "gribouille_coucou.png"
+  - page: "La mesure : Calculer des surfaces et gérer le temps, l'essentiel pour organiser tes chantiers."
+    image: "gribouille_coucou.png"
+  - page: "La forme : Plonger dans la géométrie et explorer bien d'autres outils techniques."
+    image: "gribouille_coucou.png"
+  - page: "Mais avant de commencer, on va revoir les bases avec les **multiplications**."
+    image: "gribouille_doigt_leve.png"
+
+

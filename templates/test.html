@@ -408,7 +408,22 @@
             }
 
             // Disable inputs?
-            document.querySelectorAll('button').forEach(b => b.disabled = true);
+            document.querySelectorAll('button').forEach(b => {
+                if (b.id !== 'next-page-btn') b.disabled = true;
+            });
+
+            // If next_url exists, maybe show a big "Continuer" button or redirect after delay
+            const nextUrl = "{{ next_url if next_url else '' }}";
+            if (nextUrl) {
+                const nextBtn = document.createElement('button');
+                nextBtn.id = 'next-page-btn';
+                nextBtn.className = 'btn-primary animate-pulse';
+                nextBtn.style.width = '100%';
+                nextBtn.style.marginTop = '2rem';
+                nextBtn.textContent = 'Continuer ➔';
+                nextBtn.onclick = () => window.location.href = nextUrl;
+                document.getElementById('exercises-list').appendChild(nextBtn);
+            }
 
         } catch (error) {
             console.error('Error submitting:', error);

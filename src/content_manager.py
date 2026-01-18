@@ -133,7 +133,8 @@ class ContentManager:
                                 order=global_idx,
                                 subject_id=subject_id,
                                 selection=selection,
-                                activated=step_entry.get("activated", False)
+                                activated=step_entry.get("activated", False),
+                                pages=step_config.get("pages", [])
                             )
                             global_idx += 1
                     else:
@@ -149,7 +150,8 @@ class ContentManager:
                             selection=step_entry.get("selection"),
                             scope=step_entry.get("scope"),
                             strategy=step_entry.get("strategy", "weakest_points"),
-                            activated=step_entry.get("activated", False)
+                            activated=step_entry.get("activated", False),
+                            pages=step_entry.get("pages", [])
                         )
                         global_idx += 1
         except Exception as e:
@@ -158,7 +160,11 @@ class ContentManager:
     @classmethod
     def get_subjects(cls) -> List[Subject]: return list(cls._subjects.values())
     @classmethod
+    def get_all_subjects(cls) -> Dict[str, Subject]: return cls._subjects
+    @classmethod
     def get_subject(cls, subject_id: str) -> Optional[Subject]: return cls._subjects.get(subject_id)
+    @classmethod
+    def get_all_templates(cls) -> Dict[str, ExerciseTemplate]: return cls._templates
     @classmethod
     def get_steps_for_subject(cls, subject_id: str) -> List[RoadStep]:
         steps = [s for s in cls._road_steps.values() if s.subject_id == subject_id]
@@ -180,6 +186,24 @@ class ContentManager:
             if os.path.exists(p):
                 with open(p, "r", encoding="utf-8") as f:
                     return f.read()
+        return None
+
+    @classmethod
+    def get_dialogue(cls, subject_id: str, dialogue_file: str) -> Optional[List[Dict[str, Any]]]:
+        # Search in subject folder or root content
+        search_paths = [
+            os.path.join(CONTENT_DIR, subject_id, dialogue_file),
+            os.path.join(CONTENT_DIR, dialogue_file)
+        ]
+        for p in search_paths:
+            if os.path.exists(p):
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        data = yaml.safe_load(f)
+                        if data and "dialogue" in data:
+                            return data["dialogue"]
+                except Exception as e:
+                    print(f"❌ Erreur dialogue {p}: {e}")
         return None
 
     @classmethod
