@@ -318,7 +318,7 @@
 
     {% for step in steps %}
     {% set is_completed = step.id in completed_steps %}
-    {% set is_unlocked = loop.first or (steps[loop.index0 - 1].id in completed_steps) %}
+    {% set is_unlocked = loop.first or step.activated or (steps[loop.index0 - 1].id in completed_steps) %}
 
     {% set pos_class = 'pos-center' %}
     {% if loop.index0 % 4 == 1 %}
@@ -335,12 +335,11 @@
     {% elif mastery == 1 %}{% set mastery_class = 'mastery-bronze' %}
     {% endif %}
 
-    {# Split title: "Main : Sub" #}
-    {% set title_parts = step.title.split(':') %}
-    {% set main_title = title_parts[0]|trim %}
-    {% set sub_title = title_parts[1]|trim if title_parts|length > 1 else "" %}
+    {# Split title: "Main : Sub" - DEPRECATED in favor of explicit subtitle field #}
+    {% set main_title = step.title %}
+    {% set sub_title = step.subtitle %}
 
-    <div class="road-node-wrapper {{ pos_class }}">
+    <div class="road-node-wrapper {{ pos_class }}" id="{{ step.id }}">
         <a href="/step/{{ step.id }}" class="road-node {% if not is_unlocked %}node-locked{% endif %} {% if is_completed %}node-done{% endif %} {{ mastery_class }}
             {% if step.type == 'theory' %}node-theory
             {% elif step.type == 'validation' %}node-validation
@@ -359,16 +358,14 @@
                     {% if is_completed %}
                     {% if mastery >= 3 %}🏆
                     {% else %}✅{% endif %}
-                    {% elif step.type == 'theory' %}
+                    {% elif step.type == 'cours' or step.type == 'theory' %}
                     📖
                     {% elif step.type == 'validation' %}
                     🎓
-                    {% elif 'simple' in step.type %}
-                    ⭐
-                    {% elif 'medium' in step.type %}
-                    ⭐⭐
-                    {% elif 'hard' in step.type %}
-                    ⭐⭐⭐
+                    {% elif step.type == 'page' %}
+                    📄
+                    {% elif step.type == 'flash' %}
+                    ⚡
                     {% else %}
                     🎯
                     {% endif %}

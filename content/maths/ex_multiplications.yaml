@@ -1,0 +1,301 @@
+# --- MODÈLES DYNAMIQUES (Calcul pur) ---
+generators:
+  - id: gen_mul_basic
+    tags: ["math.calcul.mul"]
+    difficulty: 1
+    vars:
+      a: { min: 1, max: 10 }
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+    explanation: "On multiplie {a} par {b}."
+  - id: gen_mul_cours_01
+    tags: ["math.calcul.mul.proprietes", "format.theory"]
+    difficulty: 1
+    interaction: "qcm"
+    multiple: true  # Indique au front-end d'utiliser des cases à cocher (checkboxes)
+    vars:
+      a: { min: 2, max: 9 }
+      b: { min: 2, max: 9 }
+    content:
+      question: "{a} x {b} est-il égal à {b} x {a} ?"
+      # Liste des options proposées à l'élève
+      options: 
+        - "Oui, car la multiplication est commutative."
+        - "Non, l'ordre des chiffres change le résultat."
+        - "Oui, le résultat sera le même dans les deux cas."
+        - "Cela ne fonctionne que pour les additions."
+      # Index des bonnes réponses (ici la 1ère et la 3ème)
+      answer: [0, 2] 
+      explanation: "La multiplication est **commutative** : on peut inverser l'ordre des nombres sans changer le résultat. {a} x {b} et {b} x {a} font tous les deux le même total."
+  - id: gen_mul_cours_02
+    tags: ["math.calcul.mul.proprietes", "format.theory"]
+    difficulty: 1
+    interaction: "qcm"
+    multiple: false  # Indique au front-end d'utiliser des cases à cocher (checkboxes)
+    vars:
+      a: { min: 2, max: 9 }
+      b: { min: 2, max: 9 }
+    content:
+      question: "Combien font {a} x {b} ?"
+      # Liste des options proposées à l'élève
+      options: 
+        - "[[ {a} + 10 ]]"
+        - "[[ {a} * {b} ]]"
+        - "[[ {b} + 10 ]]"
+        - "[[ {a} + {b} ]]"
+      answer: [1]
+      explanation: "La réponse est {a}*{b}"
+  - id: gen_mul_cours_03
+    tags: ["math.calcul.mul.proprietes", "format.theory"]
+    difficulty: 1
+    interaction: "qcm"
+    multiple: true  # Indique au front-end d'utiliser des cases à cocher (checkboxes)
+    vars:
+      a: { min: 2, max: 9 }
+      b: { min: 2, max: 9 }
+    content:
+      question: "Combien font 5 x 6 ?"
+      # Liste des options proposées à l'élève
+      options: 
+        - " 5 + 5 + 5 + 5 + 5 + 5 "
+        - " 6 + 6 + 6 + 6 + 6 + 6 "
+        - " 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 "
+        - " 6 + 6 + 6 + 6 + 6"
+      answer: [0,3]
+      explanation: "La réponse est {a}*{b}"
+  - id: gen_mul_table_1
+    tags: ["math.calcul.mul.table_1"]
+    difficulty: 1
+    vars:
+      a: 1
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_2
+    tags: ["math.calcul.mul.table_2"]
+    difficulty: 1
+    vars:
+      a: 2
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_3
+    tags: ["math.calcul.mul.table_3"]
+    difficulty: 1
+    vars:
+      a: 3
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_4
+    tags: ["math.calcul.mul.table_4"]
+    difficulty: 1
+    vars:
+      a: 4
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_5
+    tags: ["math.calcul.mul.table_5"]
+    difficulty: 1
+    vars:
+      a: 5
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_6
+    tags: ["math.calcul.mul.table_6"]
+    difficulty: 1
+    vars:
+      a: 6
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_7
+    tags: ["math.calcul.mul.table_7"]
+    difficulty: 1
+    vars:
+      a: 7
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_8
+    tags: ["math.calcul.mul.table_8"]
+    difficulty: 1
+    vars:
+      a: 8
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_9
+    tags: ["math.calcul.mul.table_9"]
+    difficulty: 1
+    vars:
+      a: 9
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  - id: gen_mul_table_10
+    tags: ["math.calcul.mul.table_10"]
+    difficulty: 1
+    vars:
+      a: 10
+      b: { min: 1, max: 10 }
+    content:
+      question: "Combien font {a} x {b} ?"
+    logic: "{a} * {b}"
+
+  # ... On pourrait en générer d'autres ou avoir un truc plus intelligent dans content_manager
+  # Mais pour l'exemple, on suit le format YAML donné.
+
+# --- MODÈLES DE PROBLÈMES (Texte & Logique) ---
+templates:
+  # --- UNIVERS : ZELDA ---
+  - id: template_zelda_rupees
+    tags: ["math.calcul.mul", "pop.zelda", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_vases: { min: 4, max: 9 }
+      valeur_rubis: [1, 5, 20] # Rubis vert, bleu ou rouge
+    content:
+      question: "Link casse {nb_vases} vases. Chaque vase contenait un rubis de valeur {valeur_rubis}. Combien de rubis Link a-t-il ramassés ?"
+      logic: "{nb_vases} * {valeur_rubis}"
+      unit: "rubis"
+      icon: "zelda_rupee"
+
+  # --- UNIVERS : POKÉMON ---
+  - id: template_pokemon_cards
+    tags: ["math.calcul.mul", "pop.pokemon", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_pages: { min: 3, max: 10 }
+      cards_per_page: [9, 10]
+    content:
+      question: "Dans ton album Pokémon, tu as rempli {nb_pages} pages. Chaque page contient {cards_per_page} cartes. Combien de cartes as-tu au total ?"
+      logic: "{nb_pages} * {cards_per_page}"
+      unit: "cartes"
+      icon: "pokemon_card"
+
+  # --- UNIVERS : SONIC ---
+  - id: template_sonic_rings
+    tags: ["math.calcul.mul", "pop.sonic", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_zones: { min: 2, max: 5 }
+      rings_par_zone: [10, 20, 50]
+    content:
+      question: "Sonic traverse {nb_zones} zones à toute vitesse. Il ramasse {rings_par_zone} anneaux dans chaque zone. Quel est son score final ?"
+      logic: "{nb_zones} * {rings_par_zone}"
+      unit: "anneaux"
+      icon: "sonic_ring"
+
+  # --- UNIVERS : MINECRAFT (Multi-étape) ---
+  - id: template_minecraft_craft
+    tags: ["math.calcul.mul", "math.calcul.add", "pop.minecraft", "logic.multi_step"]
+    difficulty: 3
+    vars:
+      nb_stacks: { min: 2, max: 5 }
+      items_per_stack: [10, 20, 64]
+      objets_en_main: { min: 5, max: 15 }
+    content:
+      question: |
+        Dans ton inventaire Minecraft, tu as {nb_stacks} piles (stacks) de {items_per_stack} blocs de terre. 
+        Tu as aussi {objets_en_main} blocs isolés dans ta main. 
+        Combien de blocs de terre as-tu au total ?
+      logic: "({nb_stacks} * {items_per_stack}) + {objets_en_main}"
+      unit: "blocs"
+      icon: "minecraft_block"
+
+  # --- UNIVERS : MARIO ---
+  - id: template_mario_blocks
+    tags: ["math.calcul.mul", "pop.mario", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_blocs: { min: 5, max: 12 }
+      pieces_par_bloc: [1, 3, 5]
+    content:
+      question: "Mario saute sous {nb_blocs} blocs '?'. Chaque bloc lui donne {pieces_par_bloc} pièces d'or. Combien de pièces a-t-il gagnées ?"
+      logic: "{nb_blocs} * {pieces_par_bloc}"
+      unit: "pièces"
+      icon: "mario_coin"
+  # --- HARRY POTTER : LE COFFRE DE GRINGOTTS ---
+  - id: template_hp_galleons
+    tags: ["math.calcul.mul", "pop.hp", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_sacs: { min: 5, max: 12 }
+      gallions_par_sac: [10, 20, 50]
+    content:
+      question: "Dans le coffre de Harry à Gringotts, il y a {nb_sacs} sacs de pièces d'or. Chaque sac contient {gallions_par_sac} Gallions. Combien de Gallions Harry possède-t-il au total ?"
+      logic: "{nb_sacs} * {gallions_par_sac}"
+      unit: "gallions"
+      icon: "hp_galleon"
+      explanation: "On multiplie les sacs par le nombre de pièces : ${nb_sacs} \times {gallions_par_sac}$."
+
+  # --- HARRY POTTER : LES POTIONS DE ROGUE (Multi-étapes) ---
+  - id: template_hp_potions
+    tags: ["math.calcul.mul", "math.calcul.add", "pop.hp", "logic.multi_step"]
+    difficulty: 3
+    vars:
+      chaudrons: { min: 3, max: 6 }
+      ingredients_par_chaudron: [4, 6, 8]
+      ingredients_reserve: { min: 5, max: 15 }
+    content:
+      question: |
+        Pour son cours, le Professeur Rogue prépare {chaudrons} chaudrons. 
+        Chaque chaudron a besoin de {ingredients_par_chaudron} racines de mandragore. 
+        Il lui en reste {ingredients_reserve} dans sa réserve personnelle. 
+        De combien de racines a-t-il besoin en tout ?
+      logic: "({chaudrons} * {ingredients_par_chaudron}) + {ingredients_reserve}"
+      unit: "racines"
+      icon: "hp_cauldron"
+  # --- LOTR : LES ARCHERS ELFES (Multiplication pure) ---
+  - id: template_lotr_elves
+    tags: ["math.calcul.mul", "pop.lotr", "format.word_problem"]
+    difficulty: 2
+    vars:
+      nb_rangees: { min: 8, max: 15 }
+      archers_par_rangee: [10, 20, 30]
+    content:
+      question: "Au Gouffre de Helm, les Elfes se préparent. Il y a {nb_rangees} rangées d'archers. Chaque rangée compte {archers_par_rangee} Elfes. Combien de flèches seront tirées en même temps ?"
+      logic: "{nb_rangees} * {archers_par_rangee}"
+      unit: "elfes"
+      icon: "lotr_elf"
+
+  # --- LOTR : L'ARMÉE DES HOMMES (Multi-étapes complexe) ---
+  - id: template_lotr_army_human
+    tags: ["math.calcul.mul", "math.calcul.add", "pop.lotr", "logic.multi_step"]
+    difficulty: 3
+    vars:
+      bataillons_hommes: { min: 4, max: 8 }
+      soldats_par_bataillon: [50, 100]
+      gardes_du_roi: { min: 10, max: 25 }
+    content:
+      question: |
+        Le Roi de Rohan rassemble son armée. Il y a {bataillons_hommes} bataillons de {soldats_par_bataillon} cavaliers. 
+        À leurs côtés, on trouve aussi {gardes_du_roi} gardes royaux d'élite. 
+        Combien de guerriers partent au combat ?
+      logic: "({bataillons_hommes} * {soldats_par_bataillon}) + {gardes_du_roi}"
+      unit: "guerriers"
+      icon: "lotr_sword"
+      explanation: "On calcule d'abord les bataillons $({bataillons_hommes} \times {soldats_par_bataillon})$, puis on ajoute les gardes."

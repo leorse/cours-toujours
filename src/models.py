@@ -4,36 +4,64 @@ from sqlalchemy import Column, JSON
 
 # --- Modèles de Base de Données ---
 
-class Subject(SQLModel, table=True):
-    id: str = Field(primary_key=True) # ex: "maths"
-    name: str
-    courses: List["Course"] = Relationship(back_populates="subject")
-    road_steps: List["RoadStep"] = Relationship(back_populates="subject")
+# --- Modèles de Contenu (Fichiers) ---
 
-class Course(SQLModel, table=True):
-    id: str = Field(primary_key=True) # ex: "math_01"
+class Subject(SQLModel):
+    id: str # ex: "maths"
+    name: str
+
+class Course(SQLModel):
+    id: str # ex: "math_01"
     title: str
     content_markdown: str
-    generator_type: str = Field(default="generic") # addition, soustraction, etc.
-    
-    # Stockage des exercices statiques (extraits du markdown)
-    exercises: List[dict] = Field(default=[], sa_column=Column(JSON))
-    
-    subject_id: str = Field(foreign_key="subject.id")
-    subject: Subject = Relationship(back_populates="courses")
-    road_steps: List["RoadStep"] = Relationship(back_populates="course")
+    generator_type: str = "generic"
+    exercises: List[dict] = []
+    session_config: Dict[str, Any] = {}
+    subject_id: str
 
-class RoadStep(SQLModel, table=True):
-    id: str = Field(primary_key=True) # course_id_theory, course_id_simple, etc.
+class Exercise(SQLModel):
+    id: str
+    subject_id: str
+    data: Dict[str, Any] = {}
+
+class ExerciseTemplate(SQLModel):
+    id: str
+    tags: List[str] = []
+    difficulty: int = 1
+    vars: Dict[str, Any] = {}
+    content: Dict[str, Any] = {}
+    logic: Optional[str] = None
+    render_type: Optional[str] = None
+    interaction: Optional[str] = "input"
+    multiple: bool = False
+    type: str = "template" # "template" or "math_engine"
+
+class RoadStep(SQLModel):
+    id: str # course_id_theory, course_id_simple, etc.
     title: str
-    type: str # theory, validation, practice_simple, practice_medium, practice_hard
-    order: int # Global order on the road
+    subtitle: Optional[str] = None
+    type: str # cours, practice, reinforcement, exam, sequence
+    order: int
     
-    course_id: str = Field(foreign_key="course.id")
-    subject_id: str = Field(foreign_key="subject.id")
+    # Configuration pour "cours"
+    content_file: Optional[str] = None # Path to md file
     
-    course: Course = Relationship(back_populates="road_steps")
-    subject: Subject = Relationship(back_populates="road_steps")
+    # Configuration pour "practice" et "exam"
+    selection: Optional[Any] = None # List or Dict for exercise selection
+    
+    # Configuration pour "sequence"
+    repeat: Optional[int] = None
+    step_config: Optional[Dict[str, Any]] = None
+    
+    # Configuration pour "reinforcement"
+    scope: Optional[str] = None
+    strategy: Optional[str] = "weakest_points"
+    
+    subject_id: str
+    activated: bool = False
+    pages: List[Dict[str, Any]] = []
+
+# --- Modèles de Base de Données (Persistance Utilisateur) ---
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -48,11 +76,10 @@ class User(SQLModel, table=True):
     def is_admin(self) -> bool:
         return "_ADMIN" in self.username
 
-
 class SubjectProgress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    subject_id: str = Field(foreign_key="subject.id")
+    subject_id: str = Field(index=True)
     score: int = Field(default=0)
     
     user: User = Relationship(back_populates="progress")
@@ -60,12 +87,21 @@ class SubjectProgress(SQLModel, table=True):
 class RoadStepProgress(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    step_id: str = Field(foreign_key="roadstep.id")
+    step_id: str = Field(index=True)
     is_completed: bool = Field(default=False)
     mastery: int = Field(default=0) # 0 to 3
     answers: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     
     user: User = Relationship(back_populates="step_progress")
+
+class ExerciseLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    tag: str = Field(index=True)
+    question_id: str
+    is_correct: bool
+    timestamp: float 
+    difficulty: str
 
 
 # --- Schémas API ---

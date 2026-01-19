@@ -7,3 +7,4 @@
 * catégoriser les générateurs de test
     * il faut typer les tests (flash ou test)
     * type les question (choix multiple, drag n drop)
+* [ ]  poi

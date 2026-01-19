@@ -176,8 +176,8 @@
 <script src="/static/js/fraction_renderer.js"></script>
 <script>
     const courseData = {
-        id: "{{ course.id }}",
-        subjectId: "{{ course.subject_id }}",
+        id: "{{ step.id }}",
+        subjectId: "{{ step.subject_id }}",
         exercises: {{ exercises | tojson }}
     };
     const userId = {{ user.id }};
@@ -204,7 +204,6 @@
         document.getElementById('progress-fill').style.width = `${progress}%`;
 
         // Generate HTML based on type
-        // For tables, it's mostly 'input'.
         let innerHTML = '';
 
         if (ex.type === 'input') {
@@ -218,8 +217,22 @@
                     <button id="btn-next" class="btn-next">Suivant &rarr;</button>
                 </div>
             `;
+        } else if (ex.type === 'qcm') {
+            innerHTML = `
+                <div class="flash-icon">⚡</div>
+                <div class="question-text">${ex.question}</div>
+                <div id="options-area" class="options-grid" style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1rem;">
+                    ${ex.options.map(opt => `
+                        <button class="option-btn" onclick="selectOption(this, '${opt}')">${opt}</button>
+                    `).join('')}
+                </div>
+                <div id="feedback" class="feedback-msg" style="margin-top: 1rem;"></div>
+                <div style="margin-top: 2rem;">
+                    <button id="btn-next" class="btn-next">Suivant &rarr;</button>
+                </div>
+            `;
         } else {
-            // Fallback for other types (simplified for flash)
+            // Fallback for other types
             innerHTML = `
                 <div class="question-text">${ex.question || 'Question'}</div>
                 <div id="options-area"></div>
@@ -260,6 +273,39 @@
         if (btnVal) btnVal.onclick = validateAnswer;
 
         document.getElementById('btn-next').onclick = nextQuestion;
+    }
+
+    function selectOption(btn, val) {
+        const ex = courseData.exercises[currentIndex];
+        const feedback = document.getElementById('feedback');
+        const btnNext = document.getElementById('btn-next');
+
+        userAnswers[ex.id] = val;
+
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        const isCorrect = (val === ex.answer);
+
+        if (isCorrect) {
+            feedback.textContent = "BRAVO !";
+            feedback.style.color = "var(--success)";
+            correctCount++;
+            confetti({
+                particleCount: 50,
+                spread: 60,
+                origin: { y: 0.7 }
+            });
+        } else {
+            feedback.textContent = `Raté... C'était ${ex.answer}`;
+            feedback.style.color = "var(--error)";
+        }
+
+        // Lock all options
+        parent.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+        btnNext.style.display = 'inline-block';
+        btnNext.focus();
     }
 
     function validateAnswer() {

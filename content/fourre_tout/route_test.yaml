@@ -1,0 +1,26 @@
+title: "Tests"
+road:
+  - id: test_exos1
+    title: "Test"
+    subtitle: "Exos 1"
+    type: "page"
+    ref_id: "mul_page_table_2"
+    activated: true
+  - id: test_exos2
+    title: "Test"
+    subtitle: "Exos 2"
+    type: "flash"
+    ref_id: "mul_page_table_2"
+    activated: true
+  - id: test_exos3
+    title: "Test"
+    subtitle: "Exos 3"
+    type: "flash"
+    ref_id: "mul_flash_01"
+    activated: true
+  - id: test_exos4
+    title: "Test"
+    subtitle: "Exos 4"
+    type: "flash"
+    ref_id: "mul_flash_01"
+    activated: true

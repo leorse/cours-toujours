@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}{{ step.title }} - Dialogue{% endblock %}
+
+{% block content %}
+<div class="dialogue-container glass animate-fade-in">
+    <div class="dialogue-content">
+        <div class="character-area">
+            <img id="character-img" src="" alt="Character" class="character-image">
+        </div>
+        <div class="bubble-area">
+            <div class="speech-bubble">
+                <p id="dialogue-text"></p>
+                <div class="bubble-footer">
+                    <button id="next-bubble-btn" class="btn-primary">Suivant</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dialogue-container {
+        max-width: 800px;
+        margin: 4rem auto;
+        padding: 3rem;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dialogue-content {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        width: 100%;
+    }
+
+    .character-area {
+        flex: 0 0 250px;
+        text-align: center;
+    }
+
+    .character-image {
+        max-width: 100%;
+        height: auto;
+        filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+    }
+
+    .character-image:hover {
+        transform: scale(1.05);
+    }
+
+    .bubble-area {
+        flex: 1;
+    }
+
+    .speech-bubble {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        position: relative;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        color: #333;
+        font-size: 1.25rem;
+        line-height: 1.6;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Arrow for the bubble */
+    .speech-bubble::after {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-width: 10px 20px 10px 0;
+        border-style: solid;
+        border-color: transparent rgba(255, 255, 255, 0.95) transparent transparent;
+    }
+
+    .bubble-footer {
+        text-align: right;
+        margin-top: 1.5rem;
+    }
+
+    #dialogue-text strong {
+        color: var(--primary);
+    }
+
+    @media (max-width: 600px) {
+        .dialogue-content {
+            flex-direction: column;
+        }
+
+        .character-area {
+            flex: 0 0 auto;
+        }
+
+        .speech-bubble::after {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dialogueData = {{ dialogue | tojson }};
+    const nextUrl = "{{ next_url }}";
+    let currentIdx = 0;
+
+    // Find the first dialogue entry that is NOT an ID or condition
+    function findFirstActualPage() {
+        for (let i = 0; i < dialogueData.length; i++) {
+            if (dialogueData[i].page) return i;
+        }
+        return -1;
+    }
+
+    currentIdx = findFirstActualPage();
+
+    const textEl = document.getElementById('dialogue-text');
+    const imgEl = document.getElementById('character-img');
+    const nextBtn = document.getElementById('next-bubble-btn');
+
+    function showPage(idx) {
+        const entry = dialogueData[idx];
+        if (!entry) return;
+
+        // Use marked for potential markdown in the dialogue
+        textEl.innerHTML = marked.parse(entry.page);
+
+        if (entry.image) {
+            imgEl.src = "/static/images/" + entry.image;
+        } else {
+            // Fallback or default
+            imgEl.src = "/static/images/gribouille_coucou.png";
+        }
+
+        // Animate appearance
+        textEl.parentElement.style.opacity = 0;
+        textEl.parentElement.style.transform = "translateX(20px)";
+        setTimeout(() => {
+            textEl.parentElement.style.transition = "all 0.4s ease";
+            textEl.parentElement.style.opacity = 1;
+            textEl.parentElement.style.transform = "translateX(0)";
+        }, 50);
+    }
+
+    nextBtn.onclick = () => {
+        // Find next actual page
+        let nextIdx = -1;
+        for (let i = currentIdx + 1; i < dialogueData.length; i++) {
+            if (dialogueData[i].page) {
+                nextIdx = i;
+                break;
+            }
+        }
+
+        if (nextIdx !== -1) {
+            currentIdx = nextIdx;
+            showPage(currentIdx);
+        } else {
+            // End of dialogue
+            window.location.href = nextUrl;
+        }
+    };
+
+    if (currentIdx !== -1) {
+        showPage(currentIdx);
+    } else {
+        window.location.href = nextUrl;
+    }
+</script>
+{% endblock %}
