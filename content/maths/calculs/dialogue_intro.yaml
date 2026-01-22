@@ -1,6 +1,5 @@
 dialogue:
   - id: intro_gribouille
-  - conditions: first_view
   - page: "Bienvenue dans ton parcours de **Mathématiques**, Un voyage au cœur de la base de toutes les **sciences**."
     image: "gribouille_coucou.png"
   - page: "On a un beau programme devant nous, conçu pour faire de toi un expert de la **précision**."

@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from typing import List, Optional
 
 from src.database import create_db_and_tables, get_session
-from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, RoadStep, RoadStepProgress, TestSubmitRequest
+from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, RoadStep, RoadStepProgress, TestSubmitRequest, UserEvent, Event
 from src.content_manager import ContentManager
 from src.test_generator import TestGenerator
 from src.fraction_generator import FractionGenerator
@@ -17,6 +17,19 @@ from src.exercise_engine import ExerciseEngine
 import re
 import time
 import random
+
+def check_global_events(user: User, session: Session) -> Optional[Event]:
+    events = ContentManager.get_events()
+    for event in events:
+        if event.conditions == "first_view":
+            # Check if user has seen it
+            seen = session.exec(select(UserEvent).where(
+                UserEvent.user_id == user.id,
+                UserEvent.event_id == event.id
+            )).first()
+            if not seen:
+                return event
+    return None
 
 def smart_compare(user_val, correct_val, ex_type: Optional[str] = None):
     """
@@ -67,7 +80,7 @@ async def lifespan(app: FastAPI):
     ContentManager.load_all()
     yield
 
-app = FastAPI(title="Cours Toujours!", lifespan=lifespan)
+app = FastAPI(title="Parcours", lifespan=lifespan)
 
 # Mount Static & Templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -129,6 +142,11 @@ def dashboard(request: Request, session: Session = Depends(get_session), user: U
     progress_entries = session.exec(select(SubjectProgress).where(SubjectProgress.user_id == user.id)).all()
     progress = {p.subject_id: p.score for p in progress_entries}
     
+    # Check global events
+    evt = check_global_events(user, session)
+    if evt:
+        return RedirectResponse(url=f"/event/{evt.id}")
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request, 
         "user": user, 
@@ -519,6 +537,61 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
         "exercises": exercises
     })
 
+@app.get("/event/{event_id}", response_class=HTMLResponse)
+def event_page(event_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/")
+        
+    event = ContentManager.get_event(event_id)
+    if not event:
+        return RedirectResponse(url="/dashboard")
+
+    # Mark as seen
+    seen = session.exec(select(UserEvent).where(
+        UserEvent.user_id == user.id,
+        UserEvent.event_id == event_id
+    )).first()
+    
+    if not seen:
+        ue = UserEvent(user_id=user.id, event_id=event_id, timestamp=time.time())
+        session.add(ue)
+        session.commit()
+        
+    if event.type == "dialogue":
+        # Search for dialogue content
+        dialogue_content = None
+        # 1. Try direct path
+        dialogue_content = ContentManager.get_dialogue("global", event.content)
+        
+        # 2. Try in subjects
+        if not dialogue_content:
+            for sub in ContentManager.get_subjects():
+                dialogue_content = ContentManager.get_dialogue(sub.id, event.content)
+                if dialogue_content: break
+        
+        if not dialogue_content:
+             return RedirectResponse(url="/dashboard")
+             
+        # Create dummy step for template
+        dummy_step = type('obj', (object,), {
+            "id": event.id,
+            "title": "Introduction", # Could be added to Event model
+            "subject_id": "global",
+            "type": "dialogue",
+            "pages": [] 
+        })
+
+        return templates.TemplateResponse("dialogue.html", {
+            "request": request,
+            "user": user,
+            "step": dummy_step,
+            "dialogue": dialogue_content,
+            "next_url": "/dashboard"
+        })
+        
+    return RedirectResponse(url="/dashboard")
+
+
 # --- Admin Routes ---
 
 @app.get("/admin/reset_all")
@@ -649,12 +722,15 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
             grouped_templates[subject_id] = []
         grouped_templates[subject_id].append(t)
 
+    dialogues = [e for e in ContentManager.get_events() if e.type == "dialogue"]
+
     return templates.TemplateResponse("debug.html", {
         "request": request,
         "user": user,
         "users": users,
         "grouped_templates": grouped_templates,
-        "subjects": subjects
+        "subjects": subjects,
+        "dialogues": dialogues
     })
 
 @app.get("/debug/test/{mode}/{template_id}", response_class=HTMLResponse)

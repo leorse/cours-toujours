@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Tableau de bord - Cours Toujours!{% endblock %}
+{% block title %}Dashboard - Parcours{% endblock %}
 
 {% block content %}
-<header style="margin-bottom: 3rem;">
-    <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">C'est l'heure d'apprendre ! 🚀</h1>
+<header style="margin-bottom: 3rem; border-bottom: 3px solid var(--text); padding-bottom: 1rem;">
+    <h1 style="color: var(--primary-dark);">Bonjour, {{ user.username }} ! 🌳</h1>
     <p style="color: var(--text-muted);">Voici tes matières pour aujourd'hui.</p>
 </header>
 

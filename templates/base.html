@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Cours Toujours!{% endblock %}</title>
+    <title>{% block title %}Parcours{% endblock %}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,20 +33,31 @@
 <body>
     <div class="container">
         <nav class="navbar glass" style="padding: 1rem 2rem;">
-            <a href="/" class="logo">Cours Toujours!</a>
-            {% if user %}
-            <div class="user-snippet">
-                <div class="user-avatar-small">{{ user.username[0].upper() }}</div>
-                <span>{{ user.username }} <small class="text-muted">(Lvl {{ (user.total_xp // 100) + 1
-                        }})</small></span>
-                {% if user.is_admin %}
-                <span class="badge badge-admin" style="background: var(--error); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;">ADMIN</span>
-                <a href="/admin/validate_all" style="font-size: 0.8rem; color: var(--success); margin-left:1rem;">Tout Valider</a>
-                <a href="/admin/reset_all" style="font-size: 0.8rem; color: var(--error); margin-left:1rem;">Tout Reset</a>
+            <a href="/" class="logo">
+                <img src="/static/images/logo.png" alt="Parcours" style="height: 50px; display: block;">
+            </a>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button id="theme-toggle" aria-label="Changer le thème" style="background: none; border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                    <img id="theme-icon" src="/static/images/soleil.png" alt="Mode" style="width: 40px; height: 40px; filter: drop-shadow(2px 2px 0px var(--text));">
+                </button>
+
+                {% if user %}
+                <div class="user-snippet">
+                    <div class="user-avatar-small">{{ user.username[0].upper() }}</div>
+                    <span>{{ user.username }} <small class="text-muted">(Lvl {{ (user.total_xp // 100) + 1
+                            }})</small></span>
+                    {% if user.is_admin %}
+                    <span class="badge badge-admin"
+                        style="background: var(--error); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;">ADMIN</span>
+                    <a href="/admin/validate_all" style="font-size: 0.8rem; color: var(--success); margin-left:1rem;">Tout
+                        Valider</a>
+                    <a href="/admin/reset_all" style="font-size: 0.8rem; color: var(--error); margin-left:1rem;">Tout
+                        Reset</a>
+                    {% endif %}
+                    <a href="/logout" style="font-size: 0.8rem; color: var(--text-muted); margin-left:1rem;">Déconnexion</a>
+                </div>
                 {% endif %}
-                <a href="/logout" style="font-size: 0.8rem; color: var(--text-muted); margin-left:1rem;">Déconnexion</a>
             </div>
-            {% endif %}
         </nav>
 
         <main id="main-content">
@@ -55,6 +66,40 @@
     </div>
 
     {% block scripts %}{% endblock %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const body = document.body;
+
+            // Load saved theme
+            const savedTheme = localStorage.getItem('theme');
+            
+            // Check if user has a preference or if system is dark
+            // But default is light as per prompt "current theme is light mode"
+            if (savedTheme === 'dark') {
+                body.classList.add('dark-mode');
+                themeIcon.src = '/static/images/lune.png';
+            } else {
+                // Default Light
+                 themeIcon.src = '/static/images/soleil.png';
+            }
+
+            themeToggle.addEventListener('click', () => {
+                body.classList.toggle('dark-mode');
+                const isDark = body.classList.contains('dark-mode');
+
+                if (isDark) {
+                    themeIcon.src = '/static/images/lune.png';
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    themeIcon.src = '/static/images/soleil.png';
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

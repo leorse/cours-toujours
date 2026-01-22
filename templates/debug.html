@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Debug Dashboard - Cours Toujours!{% endblock %}
+{% block title %}Debug - Parcours{% endblock %}
 
 {% block head %}
 <style>
@@ -35,7 +35,8 @@
         border-collapse: collapse;
     }
 
-    .stats-table th, .stats-table td {
+    .stats-table th,
+    .stats-table td {
         padding: 1rem;
         text-align: left;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -181,10 +182,18 @@
         display: inline-block;
         margin-right: 4px;
     }
-    .diff-1 { background: #10b981; }
-    .diff-2 { background: #f59e0b; }
-    .diff-3 { background: #ef4444; }
 
+    .diff-1 {
+        background: #10b981;
+    }
+
+    .diff-2 {
+        background: #f59e0b;
+    }
+
+    .diff-3 {
+        background: #ef4444;
+    }
 </style>
 {% endblock %}
 
@@ -229,7 +238,8 @@
                     <td>
                         <form action="/login" method="post" style="display:inline;">
                             <input type="hidden" name="user_id" value="{{ u.id }}">
-                            <button type="submit" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Incarner</button>
+                            <button type="submit" class="btn-primary"
+                                style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Incarner</button>
                         </form>
                     </td>
                 </tr>
@@ -238,10 +248,37 @@
         </table>
     </div>
 
+    <!-- Dialogues -->
+    <div class="section-card">
+        <h2 class="section-title">💬 Dialogues</h2>
+        <div class="exercise-grid">
+            {% for d in dialogues %}
+            <div class="exercise-card" style="border-left: 4px solid var(--primary);">
+                <div class="exercise-info">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="exercise-id">{{ d.id }}</div>
+                    </div>
+                    <div style="font-weight: 600; margin-top: 0.3rem;">
+                        {{ d.content }}
+                    </div>
+                    <div class="exercise-tags">
+                        <span class="tag-badge">{{ d.conditions }}</span>
+                    </div>
+                </div>
+                <div class="exercise-actions">
+                    <a href="/event/{{ d.id }}" class="btn-test btn-practice">
+                        ▶️ Revoir
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Exercise Library -->
     <div class="section-card">
         <h2 class="section-title">📚 Bibliothèque d'Exercices</h2>
-        
+
         {% for s_id, templates in grouped_templates.items() %}
         <div class="subject-group">
             <h3 class="subject-header">
@@ -255,7 +292,8 @@
                             <div class="exercise-id">{{ t.id }}</div>
                             <div>
                                 <span class="difficulty-dot diff-{{ t.difficulty }}"></span>
-                                <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Niv.{{ t.difficulty }}</span>
+                                <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Niv.{{ t.difficulty
+                                    }}</span>
                             </div>
                         </div>
                         <div style="font-weight: 600; margin-top: 0.3rem;">
@@ -265,7 +303,8 @@
                             {% for tag in t.tags %}
                             <span class="tag-badge">{{ tag }}</span>
                             {% endfor %}
-                            <span class="tag-badge" style="background: rgba(139, 92, 246, 0.1); color: #a78bfa;">{{ t.type }}</span>
+                            <span class="tag-badge" style="background: rgba(139, 92, 246, 0.1); color: #a78bfa;">{{
+                                t.type }}</span>
                         </div>
                     </div>
                     <div class="exercise-actions">

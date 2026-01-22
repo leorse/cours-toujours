@@ -2,7 +2,7 @@ import os
 import yaml
 import frontmatter
 from typing import List, Dict, Optional, Any
-from src.models import Subject, RoadStep, Course, Exercise, ExerciseTemplate
+from src.models import Subject, RoadStep, Course, Exercise, ExerciseTemplate, Event
 
 CONTENT_DIR = "content"
 
@@ -10,6 +10,7 @@ class ContentManager:
     _subjects: Dict[str, Subject] = {}
     _road_steps: Dict[str, RoadStep] = {}
     _templates: Dict[str, ExerciseTemplate] = {}
+    _events: Dict[str, Event] = {}
     
     @classmethod
     def load_all(cls):
@@ -34,7 +35,25 @@ class ContentManager:
             print("❌ Format invalide pour cours.yaml")
             return
 
+        if not cours_data or "cours" not in cours_data:
+            print("❌ Format invalide pour cours.yaml")
+            return
+            
+        cls._events = {}
+
         for entry in cours_data["cours"]:
+            if "events" in entry:
+                for evt_data in entry["events"]:
+                     e_id = evt_data.get("id")
+                     if e_id:
+                         cls._events[e_id] = Event(
+                             id=e_id,
+                             type=evt_data.get("type"),
+                             conditions=evt_data.get("conditions"),
+                             content=evt_data.get("content")
+                         )
+                continue
+
             rel_path = entry.get("page")
             if not rel_path: continue
             
@@ -173,6 +192,10 @@ class ContentManager:
     def get_step(cls, step_id: str) -> Optional[RoadStep]: return cls._road_steps.get(step_id)
     @classmethod
     def get_template(cls, t_id: str) -> Optional[ExerciseTemplate]: return cls._templates.get(t_id)
+    @classmethod
+    def get_events(cls) -> List[Event]: return list(cls._events.values())
+    @classmethod
+    def get_event(cls, event_id: str) -> Optional[Event]: return cls._events.get(event_id)
 
     @classmethod
     def get_step_content(cls, subject_id: str, content_file: str) -> Optional[str]:
