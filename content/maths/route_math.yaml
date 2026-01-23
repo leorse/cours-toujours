@@ -5,11 +5,13 @@ road:
     title: "Le Concept de Multiplication"
     pages: 
       - type: dialogue
+        id: intro_mul_dialogue
+        conditions:
+          - first_view
         content: "calculs/dialogue_intro.yaml"
       - type: "cours"
         content: "calculs/multiplications.md"
     
-
   # 2. Les Tables de 1 à 10 (Expansion automatique)
   - id: sequence_tables
     type: "sequence"

@@ -6,6 +6,13 @@ from sqlalchemy import Column, JSON
 
 # --- Modèles de Contenu (Fichiers) ---
 
+class Event(SQLModel):
+    id: str
+    type: str  # ex: "dialogue"
+    conditions: str  # ex: "first_view"
+    content: str  # path to content file
+
+
 class Subject(SQLModel):
     id: str # ex: "maths"
     name: str
@@ -93,6 +100,13 @@ class RoadStepProgress(SQLModel, table=True):
     answers: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     
     user: User = Relationship(back_populates="step_progress")
+
+class UserEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    event_id: str = Field(index=True)
+    timestamp: float
+
 
 class ExerciseLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

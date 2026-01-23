@@ -1,3 +1,8 @@
 cours:
+ - events:
+   - conditions: first_view
+     type: dialogue
+     id: intro_mul_dialogue
+     content: "calculs/dialogue_intro.yaml"
  - page: maths/route_math.yaml
  - page: fourre_tout/route_test.yaml
