@@ -17,6 +17,7 @@ from src.exercise_engine import ExerciseEngine
 import re
 import time
 import random
+import os
 
 def check_global_events(user: User, session: Session) -> Optional[Event]:
     events = ContentManager.get_events()
@@ -251,6 +252,7 @@ def step_page(step_id: str, request: Request, page_idx: int = 0, session: Sessio
             "user": user,
             "step": step,
             "dialogue": dialogue_content,
+            "characters": ContentManager.get_characters(),
             "next_url": next_url
         })
 
@@ -586,6 +588,7 @@ def event_page(event_id: str, request: Request, session: Session = Depends(get_s
             "user": user,
             "step": dummy_step,
             "dialogue": dialogue_content,
+            "characters": ContentManager.get_characters(),
             "next_url": "/dashboard"
         })
         
@@ -722,7 +725,41 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
             grouped_templates[subject_id] = []
         grouped_templates[subject_id].append(t)
 
-    dialogues = [e for e in ContentManager.get_events() if e.type == "dialogue"]
+    # Dialogues: events + file scan
+    dialogue_list = []
+    
+    # 1. From Events
+    for e in ContentManager.get_events():
+        if e.type == "dialogue":
+             dialogue_list.append({
+                 "id": e.id,
+                 "name": f"Event: {e.id}",
+                 "path": e.content,
+                 "subject": "global",
+                 "type": "event"
+             })
+
+    # 2. From Filesystem (Ad-hoc)
+    for root, dirs, files in os.walk("content"):
+        for f in files:
+            if "dialogue" in f and f.endswith(".yaml"):
+                full_path = os.path.join(root, f)
+                rel_path = os.path.relpath(full_path, "content")
+                
+                # Guess subject
+                parts = rel_path.split(os.sep)
+                subject_id = parts[0] if len(parts) > 1 else "global"
+                if subject_id == "content": subject_id = "global"
+
+                # Check if already in list
+                if not any(d["path"] == rel_path or d["path"] == f for d in dialogue_list):
+                     dialogue_list.append({
+                         "id": f,
+                         "name": f,
+                         "path": rel_path,
+                         "subject": subject_id,
+                         "type": "file"
+                     })
 
     return templates.TemplateResponse("debug.html", {
         "request": request,
@@ -730,7 +767,31 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
         "users": users,
         "grouped_templates": grouped_templates,
         "subjects": subjects,
-        "dialogues": dialogues
+        "dialogues": dialogue_list
+    })
+
+@app.get("/debug/view_dialogue", response_class=HTMLResponse)
+def debug_view_dialogue(path: str, subject: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/")
+    
+    dialogue_content = ContentManager.get_dialogue(subject, path)
+    if not dialogue_content:
+        raise HTTPException(status_code=404, detail="Dialogue not found")
+        
+    dummy_step = type('obj', (object,), {
+        "id": "debug",
+        "title": f"Debug: {os.path.basename(path)}",
+        "subject_id": subject,
+        "type": "dialogue"
+    })
+
+    return templates.TemplateResponse("dialogue.html", {
+        "request": request,
+        "user": user,
+        "step": dummy_step,
+        "dialogue": dialogue_content,
+        "characters": ContentManager.get_characters(),
+        "next_url": "/debug"
     })
 
 @app.get("/debug/test/{mode}/{template_id}", response_class=HTMLResponse)

@@ -1,0 +1,35 @@
+personnages:
+  - name: "Crac"
+    spritesheet: "tete_lapin.png"
+    width: 379
+    height: 379
+    emotions:
+      - name: "content"
+        coords: [0, 0]
+      - name: "serieux"
+        coords: [1, 0]
+      - name: "interrogation"
+        coords: [0, 1]
+      - name: "moue"
+        coords: [1, 1]
+      - name: "sur"
+        coords: [0, 2]
+      - name: "parle"
+        coords: [1, 2]
+  - name: "Moggy"
+    spritesheet: "tete_chat.png"
+    width: 379
+    height: 379
+    emotions:
+      - name: "content"
+        coords: [0, 0]
+      - name: "serieux"
+        coords: [1, 0]
+      - name: "interrogation"
+        coords: [0, 1]
+      - name: "moue"
+        coords: [1, 1]
+      - name: "sur"
+        coords: [0, 2]
+      - name: "parle"
+        coords: [1, 2]

@@ -3,33 +3,72 @@
 {% block title %}{{ step.title }} - Dialogue{% endblock %}
 
 {% block content %}
-<div class="dialogue-container glass animate-fade-in">
-    <div class="dialogue-content">
-        <div class="character-area">
-            <img id="character-img" src="" alt="Character" class="character-image">
-        </div>
-        <div class="bubble-area">
-            <div class="speech-bubble">
-                <p id="dialogue-text"></p>
-                <div class="bubble-footer">
-                    <button id="next-bubble-btn" class="btn-primary">Suivant</button>
+<div id="dialogue-app" class="dialogue-wrapper pb-20">
+    <!-- Loading State -->
+    <div id="loading" class="text-center p-10">Chargement...</div>
+
+    <!-- Monologue Layout (Existing) -->
+    <div id="monologue-container" class="dialogue-container glass animate-fade-in" style="display: none;">
+        <div class="dialogue-content">
+            <div class="character-area">
+                <img id="mono-character-img" src="" alt="Character" class="character-image">
+            </div>
+            <div class="bubble-area">
+                <div class="speech-bubble">
+                    <p id="mono-text"></p>
+                    <div class="bubble-footer">
+                        <button id="mono-next-btn" class="btn-primary">Suivant</button>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Dialogue Layout (New) -->
+    <div id="sms-container" class="sms-container glass animate-fade-in" style="display: none;">
+        <!-- Characters Display (Sidebars) -->
+        <div class="avatars-sidebar left-sidebar">
+            <div id="avatar-left" class="avatar-box" style="display:none;">
+                <div class="sprite-display"></div>
+                <div class="char-name"></div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div id="chat-history" class="chat-history">
+                <!-- Bubbles go here -->
+            </div>
+            <div class="chat-controls">
+                <button id="sms-next-btn" class="btn-primary w-full">Continuer</button>
+            </div>
+        </div>
+
+        <div class="avatars-sidebar right-sidebar">
+            <div id="avatar-right" class="avatar-box" style="display:none;">
+                <div class="sprite-display"></div>
+                <div class="char-name"></div>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    .dialogue-wrapper {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding-top: 2rem;
+    }
+
+    /* --- Monologue Styles --- */
     .dialogue-container {
         max-width: 800px;
-        margin: 4rem auto;
+        margin: 2rem auto;
         padding: 3rem;
         min-height: 400px;
         display: flex;
         align-items: center;
         justify-content: center;
         position: relative;
-        overflow: hidden;
     }
 
     .dialogue-content {
@@ -51,14 +90,6 @@
         transition: transform 0.3s ease;
     }
 
-    .character-image:hover {
-        transform: scale(1.05);
-    }
-
-    .bubble-area {
-        flex: 1;
-    }
-
     .speech-bubble {
         background: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
@@ -69,12 +100,8 @@
         font-size: 1.25rem;
         line-height: 1.6;
         min-height: 150px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
     }
 
-    /* Arrow for the bubble */
     .speech-bubble::after {
         content: '';
         position: absolute;
@@ -86,26 +113,121 @@
         border-color: transparent rgba(255, 255, 255, 0.95) transparent transparent;
     }
 
-    .bubble-footer {
-        text-align: right;
-        margin-top: 1.5rem;
+    /* --- SMS/Dialogue Styles --- */
+    .sms-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 2rem;
+        min-height: 600px;
+        gap: 1rem;
     }
 
-    #dialogue-text strong {
-        color: var(--primary);
+    .avatars-sidebar {
+        flex: 0 0 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: sticky;
+        top: 2rem;
     }
 
-    @media (max-width: 600px) {
-        .dialogue-content {
+    .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 600px;
+    }
+
+    .chat-history {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        scroll-behavior: smooth;
+    }
+
+    .chat-message {
+        max-width: 80%;
+        padding: 1rem 1.5rem;
+        border-radius: 18px;
+        position: relative;
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    @keyframes popIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .message-left {
+        align-self: flex-start;
+        background: white;
+        border-top-left-radius: 4px;
+        color: #333;
+    }
+
+    .message-right {
+        align-self: flex-end;
+        background: var(--primary);
+        color: white;
+        border-top-right-radius: 4px;
+    }
+
+    .msg-sender {
+        font-size: 0.75rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        opacity: 0.8;
+    }
+
+    .avatar-box {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 10px;
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+
+    .avatar-box.active {
+        box-shadow: 0 0 15px var(--primary);
+        transform: scale(1.05);
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .sprite-display {
+        background-repeat: no-repeat;
+        display: inline-block;
+        /* Width/Height set dynamically */
+    }
+
+    .char-name {
+        margin-top: 0.5rem;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    @media (max-width: 768px) {
+        .sms-container {
             flex-direction: column;
         }
 
-        .character-area {
-            flex: 0 0 auto;
-        }
-
-        .speech-bubble::after {
+        .avatars-sidebar {
             display: none;
+            /* Hide avatars on mobile or move to top */
         }
     }
 </style>
@@ -113,71 +235,234 @@
 
 {% block scripts %}
 <script>
-    const dialogueData = {{ dialogue | tojson }};
+    const dialogueRaw = {{ dialogue | tojson }};
+    const charsConfig = {{ characters | tojson }}; // { "Name": { spritesheet:..., emotions: [...] } }
     const nextUrl = "{{ next_url }}";
+
+    // --- Parsing Logic ---
+    // The raw data is a list of objects.
+    // One object might contain 'type' and 'id'.
+    // One object might contain 'message' (the steps).
+
+    let dType = "monologue";
+    let messageList = [];
+    let dId = "";
+
+    dialogueRaw.forEach(item => {
+        if (item.type) dType = item.type;
+        if (item.id) dId = item.id;
+        if (item.message) messageList = item.message;
+        // Also support if it is mixed
+    });
+
+    // Validations
+    if (!messageList || messageList.length === 0) {
+        console.error("No message list found in dialogue data");
+        // Try fallback if the list itself IS the messages (legacy format?)
+        // But based on user input, it's nested in 'message'.
+    }
+
+    console.log("Dialogue Type:", dType);
+    console.log("Message Count:", messageList.length);
+
+    // --- State ---
     let currentIdx = 0;
 
-    // Find the first dialogue entry that is NOT an ID or condition
-    function findFirstActualPage() {
-        for (let i = 0; i < dialogueData.length; i++) {
-            if (dialogueData[i].page) return i;
-        }
-        return -1;
+    const loadingEl = document.getElementById('loading');
+    const monologueDiv = document.getElementById('monologue-container');
+    const smsDiv = document.getElementById('sms-container');
+
+    loadingEl.style.display = 'none';
+
+    if (dType === "monologue") {
+        initMonologue();
+    } else if (dType === "dialogue") {
+        initSMS();
+    } else {
+        alert("Type de dialogue inconnu: " + dType);
     }
 
-    currentIdx = findFirstActualPage();
+    // --- Monologue Logic ---
+    function initMonologue() {
+        monologueDiv.style.display = 'flex';
+        const textEl = document.getElementById('mono-text');
+        const imgEl = document.getElementById('mono-character-img');
+        const btn = document.getElementById('mono-next-btn');
 
-    const textEl = document.getElementById('dialogue-text');
-    const imgEl = document.getElementById('character-img');
-    const nextBtn = document.getElementById('next-bubble-btn');
+        function renderMonologue(idx) {
+            if (idx >= messageList.length) {
+                window.location.href = nextUrl;
+                return;
+            }
+            const item = messageList[idx];
+            // Expect item.page (text) and item.image
+            textEl.innerHTML = marked.parse(item.page || "");
 
-    function showPage(idx) {
-        const entry = dialogueData[idx];
-        if (!entry) return;
-
-        // Use marked for potential markdown in the dialogue
-        textEl.innerHTML = marked.parse(entry.page);
-
-        if (entry.image) {
-            imgEl.src = "/static/images/" + entry.image;
-        } else {
-            // Fallback or default
-            imgEl.src = "/static/images/gribouille_coucou.png";
-        }
-
-        // Animate appearance
-        textEl.parentElement.style.opacity = 0;
-        textEl.parentElement.style.transform = "translateX(20px)";
-        setTimeout(() => {
-            textEl.parentElement.style.transition = "all 0.4s ease";
-            textEl.parentElement.style.opacity = 1;
-            textEl.parentElement.style.transform = "translateX(0)";
-        }, 50);
-    }
-
-    nextBtn.onclick = () => {
-        // Find next actual page
-        let nextIdx = -1;
-        for (let i = currentIdx + 1; i < dialogueData.length; i++) {
-            if (dialogueData[i].page) {
-                nextIdx = i;
-                break;
+            if (item.image) {
+                imgEl.src = "/static/images/" + item.image;
+            } else {
+                imgEl.src = "/static/images/gribouille_coucou.png";
             }
         }
 
-        if (nextIdx !== -1) {
-            currentIdx = nextIdx;
-            showPage(currentIdx);
-        } else {
-            // End of dialogue
-            window.location.href = nextUrl;
-        }
-    };
+        btn.onclick = () => {
+            currentIdx++;
+            renderMonologue(currentIdx);
+        };
 
-    if (currentIdx !== -1) {
-        showPage(currentIdx);
-    } else {
-        window.location.href = nextUrl;
+        renderMonologue(0); // Start
     }
+
+    // --- SMS Logic ---
+    function initSMS() {
+        smsDiv.style.display = 'flex';
+        const historyEl = document.getElementById('chat-history');
+        const btn = document.getElementById('sms-next-btn');
+        const leftAvatar = document.getElementById('avatar-left');
+        const rightAvatar = document.getElementById('avatar-right');
+
+        // Identify characters from the message list references
+        // Or assume first character found -> Left, second -> Right.
+        const charNames = new Set();
+        messageList.forEach(msg => {
+            // Keys of msg that are not 'emotion' are character names
+            Object.keys(msg).forEach(k => {
+                if (k !== 'emotion' && k !== 'image') charNames.add(k);
+            });
+        });
+
+        const charsArray = Array.from(charNames);
+        const charLeft = charsArray[0];
+        const charRight = charsArray[1] || null;
+
+        // Setup Avatar Boxes
+        setupAvatar(leftAvatar, charLeft);
+        if (charRight) setupAvatar(rightAvatar, charRight, true);
+
+        // Helper to update sprite based on emotion
+        function updateSprite(charName, emotion) {
+            if (!charName || !charsConfig[charName]) return;
+
+            const config = charsConfig[charName];
+            const emoData = config.emotions.find(e => e.name === emotion);
+            const gap = 1; // 1px separation between sprites
+
+            // Find container
+            let container = null;
+            if (charName === charLeft) container = leftAvatar;
+            else if (charName === charRight) container = rightAvatar;
+            else return; // Extra character not in sidebar
+
+            const spriteEl = container.querySelector('.sprite-display');
+
+            // Visual feedback of who is talking
+            leftAvatar.classList.remove('active');
+            if (rightAvatar) rightAvatar.classList.remove('active');
+            container.classList.add('active');
+
+            if (emoData) {
+                const [cx, cy] = emoData.coords;
+                // Formula: X*(width+gap), Y*(height+gap)
+                const w = config.width;
+                const h = config.height;
+                const bgX = -1 * (cx * (w + gap));
+                const bgY = -1 * (cy * (h + gap));
+
+                spriteEl.style.backgroundPosition = `${bgX}px ${bgY}px`;
+            }
+        }
+
+        function renderNextSMS() {
+            if (currentIdx >= messageList.length) {
+                window.location.href = nextUrl;
+                return;
+            }
+
+            const item = messageList[currentIdx];
+
+            // Determine who speaks in this item
+            // item = { "Crac": "Hello", "emotion": "happy" }
+            const speaker = Object.keys(item).find(k => k !== 'emotion' && k !== 'image');
+            const text = item[speaker];
+            const emotion = item.emotion || "content";
+
+            // Update Avatar
+            updateSprite(speaker, emotion);
+
+            // Create Bubble
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-message';
+
+            // Align based on side
+            if (speaker === charLeft) {
+                bubble.classList.add('message-left');
+            } else {
+                bubble.classList.add('message-right');
+            }
+
+            const senderEl = document.createElement('div');
+            senderEl.className = 'msg-sender';
+            senderEl.textContent = speaker;
+
+            const contentEl = document.createElement('div');
+            contentEl.innerHTML = marked.parse(text);
+
+            bubble.appendChild(senderEl);
+            bubble.appendChild(contentEl);
+
+            historyEl.appendChild(bubble);
+
+            // Scroll to bottom
+            historyEl.scrollTop = historyEl.scrollHeight;
+
+            currentIdx++;
+        }
+
+        btn.onclick = () => renderNextSMS();
+
+        // Render first immediately? Or wait for user?
+        // Let's render first immediately.
+        renderNextSMS();
+    }
+
+    function setupAvatar(container, charName, isMirrored = false) {
+        if (!charName || !charsConfig[charName]) return;
+
+        const config = charsConfig[charName];
+        const spriteEl = container.querySelector('.sprite-display');
+        const nameEl = container.querySelector('.char-name');
+
+        container.style.display = 'block';
+        nameEl.textContent = charName;
+
+        // Set base CSS for sprite
+        // Reduce by 1px to avoid bleeding into the gap
+        spriteEl.style.width = (config.width - 1) + 'px';
+        spriteEl.style.height = (config.height - 1) + 'px';
+        spriteEl.style.backgroundImage = `url('/static/images/${config.spritesheet}')`;
+        // Zoom down if too big ? 379px is Huge.
+        // CSS transform scale to fit sidebar?
+        // Let's scale it down using zoom or transform
+
+        if (isMirrored) {
+            spriteEl.style.transform = "scale(-0.4, 0.4)";
+            spriteEl.style.marginLeft = (config.width * 0.4) + "px";
+            spriteEl.style.transformOrigin = "top left";
+        } else {
+            spriteEl.style.transform = "scale(0.4)";
+            spriteEl.style.marginLeft = "0px";
+            spriteEl.style.transformOrigin = "top left";
+        }
+
+        // Adjust box size to match scaled sprite
+        // 379 * 0.4 ~= 152px
+        container.style.width = (config.width * 0.4 + 20) + "px";
+        container.style.height = (config.height * 0.4 + 40) + "px";
+
+        // Default emotion
+        // const defaultEmo = config.emotions[0] ? config.emotions[0].name : "content";
+        // Will be set by updateSprite
+    }
+
 </script>
 {% endblock %}

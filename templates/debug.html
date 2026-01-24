@@ -257,18 +257,26 @@
                 <div class="exercise-info">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div class="exercise-id">{{ d.id }}</div>
+                        <span class="tag-badge" style="background: rgba(255,255,255,0.1);">{{ d.subject }}</span>
                     </div>
                     <div style="font-weight: 600; margin-top: 0.3rem;">
-                        {{ d.content }}
+                        {{ d.name }}
                     </div>
                     <div class="exercise-tags">
-                        <span class="tag-badge">{{ d.conditions }}</span>
+                        <span class="tag-badge">{{ d.type }}</span>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top:4px;">{{ d.path }}</div>
                     </div>
                 </div>
                 <div class="exercise-actions">
+                    {% if d.type == 'event' %}
                     <a href="/event/{{ d.id }}" class="btn-test btn-practice">
-                        ▶️ Revoir
+                        ▶️ Event
                     </a>
+                    {% else %}
+                    <a href="/debug/view_dialogue?path={{ d.path }}&subject={{ d.subject }}" class="btn-test btn-flash">
+                        👁️ Preview
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

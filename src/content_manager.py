@@ -23,6 +23,9 @@ class ContentManager:
         if not os.path.exists(cours_path):
             print("⚠️ Fichier cours.yaml manquant.")
             return
+        
+        # Charger les personnages
+        cls._load_characters()
 
         try:
             with open(cours_path, "r", encoding="utf-8") as f:
@@ -238,3 +241,24 @@ class ContentManager:
                 if difficulty is None or t.difficulty == difficulty:
                     results.append(t)
         return results
+
+    _characters: Dict[str, Any] = {}
+
+    @classmethod
+    def _load_characters(cls):
+        char_path = os.path.join("config", "personnages.yaml")
+        if not os.path.exists(char_path):
+            print("⚠️ Fichier personnages.yaml manquant.")
+            return
+            
+        try:
+            with open(char_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data and "personnages" in data:
+                    cls._characters = {c["name"]: c for c in data["personnages"]}
+        except Exception as e:
+            print(f"❌ Erreur lecture personnages.yaml: {e}")
+
+    @classmethod
+    def get_characters(cls) -> Dict[str, Any]:
+        return cls._characters

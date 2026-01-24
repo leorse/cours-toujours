@@ -1,0 +1,21 @@
+dialogue:
+  - id: intro_gribouille
+  - type: "dialogue"
+  - personnages:
+    - name: "Crac"
+    - name: "Moggy"
+  - message:
+    - Crac: "Coucou Moggy, ça va?"
+      emotion: "parle"
+    - Moggy: "Impec Crac et toi?"
+      emotion: "parle"
+    - Crac: "On va revoir les bases avec les **multiplications**!"
+      emotion: "content"
+    - Moggy: "Oh oui j'ai hâte!"
+      emotion: "content"
+    - Moggy: "mais je suis pas très forte en maths..."
+      emotion: "interrogation"
+    - Crac: "Pas de problème, on va revoir ça ensemble!"
+      emotion: "content"
+
+
