@@ -83,6 +83,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Parcours", lifespan=lifespan)
 
+# PWA routes (must be before StaticFiles mount to take priority)
+@app.get("/sw.js")
+async def service_worker():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/js/sw.js", media_type="application/javascript")
+
+@app.get("/manifest.json")
+async def manifest():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/manifest.json", media_type="application/manifest+json")
+
 # Mount Static & Templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")

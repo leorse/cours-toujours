@@ -253,10 +253,12 @@
             delimiters: [{ left: "$", right: "$", display: false }]
         });
 
-        // Focus input
+        // Focus input (desktop only — évite l'ouverture du clavier virtuel sur mobile)
         const input = document.getElementById(`input-${ex.id}`);
         if (input) {
-            input.focus();
+            if (!window.matchMedia('(pointer: coarse)').matches) {
+                input.focus();
+            }
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
