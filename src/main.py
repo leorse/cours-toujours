@@ -225,25 +225,26 @@ def step_page(step_id: str, request: Request, page_idx: int = 0, session: Sessio
         if not dialogue_content:
              # Skip if no dialogue found
              return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
-        
-        # Check conditions
-        conditions = []
-        for entry in dialogue_content:
-            if "conditions" in entry:
-                if isinstance(entry["conditions"], list):
-                    conditions.extend(entry["conditions"])
-                else:
-                    conditions.append(entry["conditions"])
-        
-        if "first_view" in conditions:
-            # Check if user has already seen this step
-            progress = session.exec(select(RoadStepProgress).where(
-                RoadStepProgress.user_id == user.id,
-                RoadStepProgress.step_id == step.id
+
+        # Read conditions from the page entry (route_math.yaml), not from the dialogue content
+        page_conditions = active_page.get("conditions", [])
+        if not isinstance(page_conditions, list):
+            page_conditions = [page_conditions] if page_conditions else []
+
+        dialogue_id = active_page.get("id", "")
+        if "first_view" in page_conditions and dialogue_id:
+            # Prefix to avoid collision with global event IDs
+            tracking_id = f"step_page_{step_id}_{dialogue_id}"
+            seen = session.exec(select(UserEvent).where(
+                UserEvent.user_id == user.id,
+                UserEvent.event_id == tracking_id
             )).first()
-            if progress and progress.is_completed:
-                # Redirect to next page
+            if seen:
                 return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
+            # Mark as seen immediately so it won't show again
+            import time
+            session.add(UserEvent(user_id=user.id, event_id=tracking_id, timestamp=time.time()))
+            session.commit()
 
         # If we got here, render dialogue
         next_url = f"/step/{step_id}?page_idx={page_idx + 1}" if step.pages and page_idx + 1 < len(step.pages) else f"/subjects/{step.subject_id}"

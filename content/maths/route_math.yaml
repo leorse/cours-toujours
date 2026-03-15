@@ -9,6 +9,11 @@ road:
         conditions:
           - first_view
         content: "calculs/dialogue_intro.yaml"
+      - type: dialogue
+        id: dial_crac_moggy
+        conditions:
+          - first_view
+        content: "calculs/dialogue_crac_moggy.yaml"
       - type: "cours"
         content: "calculs/multiplications.md"
     

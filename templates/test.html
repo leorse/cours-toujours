@@ -247,6 +247,7 @@
                     `;
             }
 
+            card.id = `exercise-card-${ex.id}`;
             card.innerHTML = `
                 <div style="font-weight: bold; margin-bottom: 1rem; color: var(--secondary); font-size: 1.1em;">
                     Question ${index + 1}
@@ -325,6 +326,93 @@
         userAnswers[exId][zoneIndex] = data;
     }
 
+    function applyReadonlyFeedback(exId, isCorrect, correctAnswer, userAnswer) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+
+        const green = 'rgba(34, 197, 94, 0.15)';
+        const red = 'rgba(239, 68, 68, 0.15)';
+        const greenBorder = '#22c55e';
+        const redBorder = '#ef4444';
+
+        if (ex.type === 'input' || ex.type === 'fraction_scenario') {
+            const input = document.querySelector(`#exercise-card-${exId} input`);
+            if (input) {
+                input.readOnly = true;
+                input.style.cursor = 'default';
+                input.style.borderColor = isCorrect ? greenBorder : redBorder;
+                input.style.background = isCorrect ? green : red;
+                input.style.color = isCorrect ? greenBorder : redBorder;
+                input.style.fontWeight = 'bold';
+            }
+        } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
+            const buttons = document.querySelectorAll(`#exercise-card-${exId} .option-btn`);
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.style.cursor = 'default';
+                const btnVal = btn.innerText.trim();
+                const isCorrectBtn = Array.isArray(correctAnswer)
+                    ? correctAnswer.map(String).map(s => s.trim()).includes(btnVal)
+                    : String(correctAnswer).trim() === btnVal;
+                const isSelected = btn.classList.contains('selected');
+
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+
+                if (isSelected && isCorrectBtn) {
+                    btn.style.background = green;
+                    btn.style.borderColor = greenBorder;
+                    btn.style.color = greenBorder;
+                } else if (isSelected && !isCorrectBtn) {
+                    btn.style.background = red;
+                    btn.style.borderColor = redBorder;
+                    btn.style.color = redBorder;
+                } else if (!isSelected && isCorrectBtn) {
+                    btn.style.borderColor = greenBorder;
+                    btn.style.opacity = '0.8';
+                }
+            });
+        } else if (ex.type === 'cloze') {
+            const selects = document.querySelectorAll(`#exercise-card-${exId} select`);
+            const answers = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+            selects.forEach((sel, i) => {
+                sel.disabled = true;
+                const expectedVal = String(answers[i] ?? '').trim();
+                const givenVal = String((Array.isArray(userAnswer) ? userAnswer[i] : userAnswer) ?? '').trim();
+                const zoneCorrect = expectedVal === givenVal;
+                sel.style.borderColor = zoneCorrect ? greenBorder : redBorder;
+                sel.style.background = zoneCorrect ? green : red;
+                sel.style.color = zoneCorrect ? greenBorder : redBorder;
+                sel.style.fontWeight = 'bold';
+            });
+        } else if (ex.type === 'drag_drop') {
+            const answers = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+            const given = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+
+            const zones = document.querySelectorAll(`[id^="zone-${exId}"]`);
+            zones.forEach((zone, i) => {
+                zone.removeAttribute('ondrop');
+                zone.removeAttribute('ondragover');
+                zone.style.pointerEvents = 'none';
+                const expectedVal = String(answers[i] ?? '').trim();
+                const givenVal = String(given[i] ?? '').trim();
+                const zoneCorrect = expectedVal === givenVal;
+                zone.style.borderColor = zoneCorrect ? greenBorder : redBorder;
+                zone.style.background = zoneCorrect ? green : red;
+                zone.style.color = zoneCorrect ? greenBorder : redBorder;
+                zone.style.fontWeight = 'bold';
+            });
+
+            document.querySelectorAll(`#exercise-card-${exId} .draggable-item`).forEach(item => {
+                item.draggable = false;
+                item.style.cursor = 'default';
+                item.removeAttribute('ondragstart');
+                item.style.opacity = '0.5';
+            });
+        }
+    }
+
     async function submitTest() {
         if (Object.keys(userAnswers).length < stepData.exercises.length) {
             if (!confirm("Vous n'avez pas répondu à toutes les questions. Voulez-vous vraiment valider ?")) {
@@ -376,9 +464,11 @@
                 const isCorrect = res.correct;
                 if (isCorrect) correctCount++;
 
+                applyReadonlyFeedback(exId, isCorrect, res.correct_answer, userAnswers[exId]);
+
                 const fbDiv = document.getElementById(`feedback-${exId}`);
                 if (fbDiv) {
-                    fbDiv.innerHTML = isCorrect ? "✅ Correct" : `❌ Incorrect (Réponse: ${res.correct_answer})`;
+                    fbDiv.innerHTML = isCorrect ? "✅ Correct" : `❌ Incorrect — Bonne réponse : <strong>${res.correct_answer}</strong>`;
                     fbDiv.style.color = isCorrect ? "var(--success)" : "var(--error)";
 
                     // Render Math in feedback
@@ -412,8 +502,8 @@
                 });
             }
 
-            // Disable inputs?
-            document.querySelectorAll('button').forEach(b => {
+            // Disable the submit button
+            document.querySelectorAll('.btn-primary').forEach(b => {
                 if (b.id !== 'next-page-btn') b.disabled = true;
             });
 
