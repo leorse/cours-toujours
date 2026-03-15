@@ -1,0 +1,77 @@
+{% extends "debug/base_debug.html" %}
+
+{% block debug_content %}
+<!-- User stats -->
+<div class="section-card">
+    <h2 class="section-title">👥 Utilisateurs & Statistiques</h2>
+    <table class="stats-table">
+        <thead>
+            <tr>
+                <th>Utilisateur</th>
+                <th>XP Total</th>
+                <th>Avancement</th>
+                <th>Succès</th>
+                <th>Permissions</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>
+                    <div class="user-badge">
+                        <div class="user-avatar">{{ u.username[0] | upper }}</div>
+                        <div>
+                            <div style="font-weight: 600; color: var(--text);">{{ u.username }}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">ID: {{ u.id }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="xp-badge">{{ u.total_xp }} XP</span>
+                </td>
+                <td>
+                    <div
+                        style="width: 100px; background: rgba(255,255,255,0.1); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 4px;">
+                        <div
+                            style="width: {{ user_stats[u.id].global_progress }}%; background: var(--primary); height: 100%;">
+                        </div>
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">
+                        {{ user_stats[u.id].nb_completed }}/{{ user_stats[u.id].total_steps }} ({{
+                        user_stats[u.id].global_progress }}%)
+                    </div>
+                </td>
+                <td>
+                    <div
+                        style="font-size: 0.9rem; font-weight: 600; color: {{ '#2ecc71' if user_stats[u.id].success_rate > 70 else ('#f1c40f' if user_stats[u.id].success_rate > 40 else '#e74c3c') }};">
+                        {{ user_stats[u.id].success_rate }}%
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">
+                        {{ user_stats[u.id].total_exercises }} ex.
+                    </div>
+                </td>
+                <td>
+                    {% if u.is_admin %}
+                    <span style="color: #ef4444; font-size: 0.8rem; font-weight: 700;">ADMIN</span>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">Utilisateur</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <form action="/login" method="post" style="display:inline;">
+                            <input type="hidden" name="user_id" value="{{ u.id }}">
+                            <button type="submit" class="btn-primary"
+                                style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Incarner</button>
+                        </form>
+                        <a href="/debug/user/{{ u.id }}" class="btn-secondary"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; text-decoration: none;">🔍 Détails</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

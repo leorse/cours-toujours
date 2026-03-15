@@ -425,7 +425,7 @@
         const actualCount = Array.isArray(userVal) ? userVal.filter(v => v).length : (userVal ? 1 : 0);
 
         if (actualCount < expectedCount) {
-            alert("Réponds à la question avant de vérifier !"); return;
+            showPopup("Réponds à la question avant de vérifier !", "Oups !", "warning"); return;
         }
 
         let isCorrect = false;
@@ -447,6 +447,22 @@
         if (isCorrect) {
             fb.innerHTML = "✅ Très bien !"; fb.style.color = "var(--success)"; fb.style.display = "block";
             btn.style.display = "none"; wrapper.style.borderColor = "var(--success)";
+
+            // Trigger visual feedback (New Flash content available)
+            if (typeof triggerFlashAnimation === 'function') {
+                triggerFlashAnimation();
+            }
+
+            // Persist progress to server
+            fetch('/log_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    exercise: ex,
+                    is_correct: true
+                })
+            }).catch(e => console.error("Logging error:", e));
 
             // Check if all exercises in this section are done
             const sectionWrapper = document.getElementById(`section-${sectionIdx}`);
@@ -499,7 +515,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert("Erreur lors de la validation");
+            showPopup("Erreur lors de la validation", "Erreur", "error");
         }
     }
 </script>

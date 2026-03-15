@@ -1,5 +1,5 @@
 dialogue:
-  - id: intro_gribouille
+  - id: dial_crac_moggy
   - type: "dialogue"
   - personnages:
     - name: "Crac"
