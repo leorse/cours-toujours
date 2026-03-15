@@ -38,6 +38,8 @@ Le fichier `main.py` est le cœur de l'application. Il contient :
 | `/submit_step` | POST | Soumission étape théorique |
 | `/submit_test_step` | POST | Soumission étape exercices (avec correction) |
 | `/log_exercise` | POST | Log individuel d'un exercice (mode flash) |
+| `/sw.js` | GET | Service Worker PWA (doit précéder le mount StaticFiles) |
+| `/manifest.json` | GET | Web App Manifest PWA |
 
 ### Routes Admin (préfixe `/admin/`)
 
@@ -184,11 +186,36 @@ Architecture extensible basée sur le pattern **Strategy** :
 | `dialogue.html` | Scènes de dialogue (monologue ou SMS) |
 | `debug/*.html` | Outils d'administration |
 
+### CSS
+
+- **`style.css`** : styles principaux (thème, layout, composants)
+- **`responsive.css`** : breakpoints additifs desktop-first
+  - `@media (max-width: 768px)` : navbar, dialogue chat, monologue empilé
+  - `@media (max-width: 640px)` : grilles 1 colonne, touch targets 44px, fonts flash
+  - `@media (max-width: 480px)` : padding réduit, drag-drop 44px, masquage liens admin
+
 ### JavaScript
 
 - **`blueprint_renderer.js`** : rendu SVG des blueprints de fractions
 - **`fraction_renderer.js`** : utilitaires fractions
+- **`touch_dragdrop.js`** : drag-drop tactile (pattern tap-sélect-tap)
+  - Détection via `window.matchMedia('(pointer: coarse)')` — jamais UA sniffing
+  - Délégation d'événement sur le container (compatible avec DOM injecté dynamiquement)
+  - Exposition : `window.TouchDragDrop.init(containerEl, onPlace)`
+- **`sw.js`** : Service Worker PWA
+  - Précache au `install` : assets `/static/*` + CDN (KaTeX, Marked, Confetti)
+  - Cache-first pour les assets statiques
+  - Network-first pour les pages HTML
+  - Stale-while-revalidate pour CDN
+  - Jamais mis en cache : routes POST (`/submit_*`, `/log_*`, `/login`)
+  - Versioning via `CACHE_NAME = 'parcours-vN'` — incrémenter à chaque déploiement
 - Logique inline dans les templates (soumission exercices, confettis, KaTeX auto-render)
+
+### PWA
+
+- **`static/manifest.json`** : nom "Parcours", thème vert `#55a630`, `display: standalone`, icône `logo.png`
+- Le SW doit être servi depuis `/sw.js` (scope `/`) : la route FastAPI est déclarée **avant** `app.mount("/static", ...)` pour prendre priorité
+- Enregistrement SW dans `base.html` via `navigator.serviceWorker.register('/sw.js')`
 
 ### Bibliothèques CDN
 

@@ -60,13 +60,36 @@ Le paramètre `page_idx` (query string) permet de naviguer entre les pages d'une
 | `qcm` | Boutons de choix unique | Réponse parmi 4 options |
 | `multiselect` | Cases à cocher | Plusieurs bonnes réponses |
 | `cloze` | Texte à trous | Compléter une phrase |
-| `drag_drop` | Glisser-déposer | Réordonner des éléments |
+| `drag_drop` | Glisser-déposer (desktop) / tap-sélect-tap (mobile) | Réordonner des éléments |
 
 Le `render_type` peut forcer un rendu visuel particulier (ex: `fraction_visual` pour afficher un blueprint SVG).
 
+#### Drag-drop sur mobile
+
+Sur les appareils tactiles (`pointer: coarse`), le drag HTML5 ne se déclenche pas. Le module `touch_dragdrop.js` prend le relais avec un pattern tap :
+1. Tap sur un `.draggable-item` → sélection (surlignage vert)
+2. Tap sur une `.drop-zone` → dépôt de la valeur
+3. Tap sur le même item → désélection
+
 ---
 
-### 6. Soumission et correction
+### 6. Feedback visuel après correction
+
+Après validation d'un exercice (page de cours ou test), les réponses passent en **lecture seule** avec un code couleur :
+
+| Situation | Couleur |
+|---|---|
+| Bonne réponse (input, select, QCM) | Vert `#22c55e`, fond vert clair |
+| Mauvaise réponse | Rouge `#ef4444`, fond rouge clair |
+| Bonne réponse non cochée (QCM) | Contour vert (indication) |
+
+- **Page de cours** (`unit.html`) : verrouillage immédiat après validation. Lors d'une erreur : flash rouge 2 secondes puis réinitialisation pour permettre un nouvel essai.
+- **Page de test** (`test.html`) : verrouillage après soumission globale du test. Le message de feedback indique la bonne réponse en cas d'erreur.
+- **Revisit d'une page déjà complétée** : les bonnes réponses sont affichées et verrouillées en vert (`renderFullContent`).
+
+---
+
+### 7. Soumission et correction
 
 Deux endpoints distincts selon le type d'étape :
 
@@ -147,6 +170,8 @@ Les sprites sont organisés en spritesheet 2×3 (colonnes × lignes), positionn�
 
 Un dialogue peut avoir une condition `first_view` : il ne s'affiche qu'une seule fois par utilisateur, puis est automatiquement sauté (redirection vers la page suivante).
 
+La condition est lue depuis l'entrée `pages[]` du fichier de route (ex: `route_math.yaml`), **pas** depuis le contenu du fichier dialogue YAML. Le suivi est stocké dans `UserEvent` avec un ID préfixé `step_page_{step_id}_{dialogue_id}` pour éviter toute collision avec les événements globaux (`cours.yaml`).
+
 ---
 
 ### 10. Gamification
@@ -186,6 +211,29 @@ Un tag `math.calcul.mul.table_3` est agrégé en :
 - `math.calcul.mul.table_3`
 
 Cela permet d'afficher des stats à chaque niveau de granularité.
+
+---
+
+### 13. Design responsive et PWA
+
+#### Breakpoints CSS (`responsive.css`)
+
+| Breakpoint | Adaptations principales |
+|---|---|
+| `≤ 768px` | Navbar en colonne, dialogue SMS plein écran, monologue empilé |
+| `≤ 640px` | Grilles en 1 colonne, touch targets 44px min, fonts flash réduits |
+| `≤ 480px` | Padding réduit, drag-drop zones 44px, liens admin masqués |
+
+#### PWA (Progressive Web App)
+
+L'application est installable sur mobile et bureau :
+- **manifest.json** : nom, icône, thème vert, mode standalone
+- **Service Worker** : cache-first pour assets locaux et CDN → consultation offline possible
+- Enregistrement automatique dans `base.html`
+
+#### Tables Markdown
+
+Les tableaux générés par Marked.js sont automatiquement enveloppés dans un `<div class="table-scroll-wrapper">` (scroll horizontal) après le rendu. Le `.content-area` dispose de `min-width: 0` pour éviter que les tables larges ne fassent déborder la colonne CSS Grid.
 
 ---
 
