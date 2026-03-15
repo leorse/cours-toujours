@@ -37,8 +37,11 @@
                 <img src="/static/images/logo.png" alt="Parcours" style="height: 50px; display: block;">
             </a>
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <button id="theme-toggle" aria-label="Changer le thème" style="background: none; border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-                    <img id="theme-icon" src="/static/images/soleil.png" alt="Mode" style="width: 40px; height: 40px; filter: drop-shadow(2px 2px 0px var(--text));">
+                <button id="theme-toggle" aria-label="Changer le thème"
+                    style="background: none; border: none; cursor: pointer; transition: transform 0.2s;"
+                    onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                    <img id="theme-icon" src="/static/images/soleil.png" alt="Mode"
+                        style="width: 40px; height: 40px; filter: drop-shadow(2px 2px 0px var(--text));">
                 </button>
 
                 {% if user %}
@@ -46,15 +49,22 @@
                     <div class="user-avatar-small">{{ user.username[0].upper() }}</div>
                     <span>{{ user.username }} <small class="text-muted">(Lvl {{ (user.total_xp // 100) + 1
                             }})</small></span>
-                    {% if user.is_admin %}
+
+                    {% if user.is_admin or user.username == '_ADMIN' %}
                     <span class="badge badge-admin"
                         style="background: var(--error); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;">ADMIN</span>
-                    <a href="/admin/validate_all" style="font-size: 0.8rem; color: var(--success); margin-left:1rem;">Tout
+                    <a href="/debug"
+                        style="font-size: 0.8rem; color: var(--primary); margin-left:1rem; font-weight: 700;">🛠️
+                        Debug</a>
+                    <a href="/admin/validate_all"
+                        style="font-size: 0.8rem; color: var(--success); margin-left:1rem;">Tout
                         Valider</a>
                     <a href="/admin/reset_all" style="font-size: 0.8rem; color: var(--error); margin-left:1rem;">Tout
                         Reset</a>
                     {% endif %}
-                    <a href="/logout" style="font-size: 0.8rem; color: var(--text-muted); margin-left:1rem;">Déconnexion</a>
+
+                    <a href="/logout"
+                        style="font-size: 0.8rem; color: var(--text-muted); margin-left:1rem;">Déconnexion</a>
                 </div>
                 {% endif %}
             </div>
@@ -75,7 +85,7 @@
 
             // Load saved theme
             const savedTheme = localStorage.getItem('theme');
-            
+
             // Check if user has a preference or if system is dark
             // But default is light as per prompt "current theme is light mode"
             if (savedTheme === 'dark') {
@@ -83,7 +93,7 @@
                 themeIcon.src = '/static/images/lune.png';
             } else {
                 // Default Light
-                 themeIcon.src = '/static/images/soleil.png';
+                themeIcon.src = '/static/images/soleil.png';
             }
 
             themeToggle.addEventListener('click', () => {
@@ -98,6 +108,114 @@
                     localStorage.setItem('theme', 'light');
                 }
             });
+        });
+    </script>
+    <!-- Global Popup -->
+    <div id="custom-popup" class="popup-overlay" style="display: none;">
+        <div class="popup-box cartoon-block glass" style="background: var(--surface);">
+            <div class="popup-header">
+                <h3 id="popup-title" style="margin: 0; color: var(--primary-dark);">Message</h3>
+                <button onclick="closePopup()" class="popup-close-btn">&times;</button>
+            </div>
+            <div id="popup-message" class="popup-body">
+                <!-- Message here -->
+            </div>
+            <div class="popup-footer">
+                <button onclick="closePopup()" class="btn-primary" id="popup-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Animation Overlay -->
+    <div id="flash-animation-overlay"
+        style="position: fixed; inset: 0; pointer-events: none; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(2px);">
+        <img src="/static/images/flash.png" alt="Flash" id="flash-img"
+            style="max-width: 300px; filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.8));">
+    </div>
+
+    <style>
+        @keyframes flashEffect {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            25% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+
+            75% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        .animate-flash {
+            animation: flashEffect 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+
+    <script>
+        function triggerFlashAnimation() {
+            const overlay = document.getElementById('flash-animation-overlay');
+            const img = document.getElementById('flash-img');
+
+            // Reset
+            overlay.style.display = 'flex';
+            img.classList.remove('animate-flash');
+            void img.offsetWidth; // Trigger reflow
+
+            // Start
+            img.classList.add('animate-flash');
+
+            // Hide after finish
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 1200);
+        }
+    </script>
+
+    <script>
+        function showPopup(message, title = "Info", type = "info") {
+            const popup = document.getElementById('custom-popup');
+            const titleEl = document.getElementById('popup-title');
+            const msgEl = document.getElementById('popup-message');
+            const box = popup.querySelector('.popup-box');
+
+            titleEl.textContent = title;
+            msgEl.innerHTML = message; // Allow HTML in message
+
+            // basic styling based on type
+            if (type === 'error') {
+                titleEl.style.color = 'var(--error)';
+                box.style.borderColor = 'var(--error)';
+            } else if (type === 'success') {
+                titleEl.style.color = 'var(--success)';
+                box.style.borderColor = 'var(--success)';
+            } else {
+                titleEl.style.color = 'var(--primary-dark)';
+                box.style.borderColor = 'var(--text)';
+            }
+
+            popup.style.display = 'flex';
+        }
+
+        function closePopup() {
+            const popup = document.getElementById('custom-popup');
+            popup.style.display = 'none';
+        }
+
+        // Close on outside click
+        document.getElementById('custom-popup').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closePopup();
+            }
         });
     </script>
 </body>

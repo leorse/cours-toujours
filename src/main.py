@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from src.database import create_db_and_tables, get_session
 from src.models import User, Subject, Course, SubjectProgress, SubmitRequest, RoadStep, RoadStepProgress, TestSubmitRequest, UserEvent, Event
@@ -225,25 +225,26 @@ def step_page(step_id: str, request: Request, page_idx: int = 0, session: Sessio
         if not dialogue_content:
              # Skip if no dialogue found
              return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
-        
-        # Check conditions
-        conditions = []
-        for entry in dialogue_content:
-            if "conditions" in entry:
-                if isinstance(entry["conditions"], list):
-                    conditions.extend(entry["conditions"])
-                else:
-                    conditions.append(entry["conditions"])
-        
-        if "first_view" in conditions:
-            # Check if user has already seen this step
-            progress = session.exec(select(RoadStepProgress).where(
-                RoadStepProgress.user_id == user.id,
-                RoadStepProgress.step_id == step.id
+
+        # Read conditions from the page entry (route_math.yaml), not from the dialogue content
+        page_conditions = active_page.get("conditions", [])
+        if not isinstance(page_conditions, list):
+            page_conditions = [page_conditions] if page_conditions else []
+
+        dialogue_id = active_page.get("id", "")
+        if "first_view" in page_conditions and dialogue_id:
+            # Prefix to avoid collision with global event IDs
+            tracking_id = f"step_page_{step_id}_{dialogue_id}"
+            seen = session.exec(select(UserEvent).where(
+                UserEvent.user_id == user.id,
+                UserEvent.event_id == tracking_id
             )).first()
-            if progress and progress.is_completed:
-                # Redirect to next page
+            if seen:
                 return RedirectResponse(url=f"/step/{step_id}?page_idx={page_idx + 1}")
+            # Mark as seen immediately so it won't show again
+            import time
+            session.add(UserEvent(user_id=user.id, event_id=tracking_id, timestamp=time.time()))
+            session.commit()
 
         # If we got here, render dialogue
         next_url = f"/step/{step_id}?page_idx={page_idx + 1}" if step.pages and page_idx + 1 < len(step.pages) else f"/subjects/{step.subject_id}"
@@ -427,10 +428,17 @@ def submit_test_step(submission: TestSubmitRequest, session: Session = Depends(g
         
         # Logging
         try:
-             tag = exercise.get("tag", "unknown")
+             tags = exercise.get("tags", [])
+             if not tags and "tag" in exercise:
+                 tags = [exercise.get("tag")]
+                 
+             if not tags: tags = ["unknown"]
+             
+             tag_str = ",".join(tags)
+
              log_entry = ExerciseLog(
-                 user_id=user.id, tag=tag, question_id=ex_id, is_correct=is_correct,
-                 timestamp=time.time(), difficulty=exercise.get("meta", {}).get("difficulty", "unknown") 
+                 user_id=user.id, tag=tag_str, question_id=ex_id, is_correct=is_correct,
+                 timestamp=time.time(), difficulty=str(exercise.get("meta", {}).get("difficulty", "1"))
              )
              session.add(log_entry)
         except Exception as e:
@@ -513,11 +521,74 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
         
-    # Generate Exercises (Flash Mode)
-    # Since we don't have courses in DB anymore, we use TestGenerator differently or provide specific logic
-    # For now, let's use a simplified approach for subject-wide flash
-    dummy_course = type('obj', (object,), {'generator_type': 'multiplication'})
-    exercises = TestGenerator.generate_step_exercises(dummy_course, "validation", count=15)
+    # 1. Fetch user's history for this subject
+    logs = session.exec(select(ExerciseLog).where(ExerciseLog.user_id == user.id)).all()
+    
+    # 2. Heuristic: filter logs that might belong to this subject
+    # In this simplified model, we'll look at tags starting with subject_id or general heuristics
+    # Or just use ALL logs if subject_wide flash is desired
+    stats_by_tag = {}
+    for l in logs:
+        raw_tags = l.tag.split(",") if l.tag else ["unknown"]
+        for t in raw_tags:
+            t = t.strip()
+            if not t: continue
+            if t not in stats_by_tag:
+                stats_by_tag[t] = {"total": 0, "success": 0}
+            stats_by_tag[t]["total"] += 1
+            if l.is_correct:
+                stats_by_tag[t]["success"] += 1
+
+    # 3. Filter for tags relevant to this subject
+    # We'll get all templates for this subject to know which tags are available
+    available_templates = []
+    all_templates = ContentManager.get_all_templates()
+    for t_id, t in all_templates.items():
+        # Heuristic: template ID starts with subject_id (e.g. maths_...)
+        if t_id.startswith(subject_id) or any(tag.startswith(subject_id) for tag in t.tags):
+            available_templates.append(t)
+
+    if not available_templates:
+        # Fallback to all if heuristic fails
+        available_templates = list(all_templates.values())
+
+    # 4. Map known tags to success rate
+    known_tags_stats = []
+    for tag, data in stats_by_tag.items():
+        # Only include if it's a tag present in our available templates
+        if any(tag in t.tags for t in available_templates):
+            rate = data["success"] / data["total"]
+            known_tags_stats.append({"tag": tag, "rate": rate})
+
+    # Sort by success rate (ascending)
+    known_tags_stats.sort(key=lambda x: x["rate"])
+
+    exercises = []
+    count_per_session = 10
+    
+    if not known_tags_stats:
+        # User is new to this subject or no logs found
+        # Pick random templates from the subject
+        for _ in range(count_per_session):
+            t = random.choice(available_templates)
+            exercises.append(ExerciseEngine.generate_exercise(t))
+    else:
+        # Prioritize weak tags
+        # We'll pick 70% from weak tags and 30% random among known
+        weak_tags = [item["tag"] for item in known_tags_stats[:3]] # Top 3 weakest
+        all_known = [item["tag"] for item in known_tags_stats]
+
+        for _ in range(count_per_session):
+            # 70% chance to pick a weak tag if available
+            pool = weak_tags if (random.random() < 0.7 and weak_tags) else all_known
+            target_tag = random.choice(pool)
+            
+            # Find templates with this tag
+            valid_templates = [t for t in available_templates if target_tag in t.tags]
+            if not valid_templates: valid_templates = available_templates # Fallback
+            
+            t = random.choice(valid_templates)
+            exercises.append(ExerciseEngine.generate_exercise(t))
     
     flash_course = {
         "id": f"flash_{subject_id}",
@@ -531,7 +602,7 @@ def flash_page(subject_id: str, request: Request, session: Session = Depends(get
         "type": "flash"
     }
 
-    return templates.TemplateResponse("test.html", {
+    return templates.TemplateResponse("flash.html", {
         "request": request,
         "user": user,
         "course": flash_course,
@@ -698,24 +769,75 @@ def admin_invalidate_step(step_id: str, request: Request, session: Session = Dep
     return RedirectResponse(url=f"/subjects/{step.subject_id}", status_code=303)
 
 @app.get("/debug", response_class=HTMLResponse)
-def debug_dashboard(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if not user or not user.is_admin:
-         # For development, allow access even if not admin, or just check if user exists
-         if not user:
-             return RedirectResponse(url="/")
+def debug_index(request: Request, user: User = Depends(get_current_user)):
+    if not user or user.username != "_ADMIN":
+        return RedirectResponse(url="/")
+    return RedirectResponse(url="/debug/stats")
+
+@app.get("/debug/stats", response_class=HTMLResponse)
+def debug_stats(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or user.username != "_ADMIN":
+        return RedirectResponse(url="/")
     
     users = session.exec(select(User)).all()
+    
+    # Calculate detailed stats for each user
+    user_stats = {}
+    
+    # Pre-calculate total steps available in the system
+    total_steps_count = 0
+    all_subject_ids = ContentManager.get_subjects()
+    for s in all_subject_ids:
+        total_steps_count += len(ContentManager.get_steps_for_subject(s.id))
+        
+    for u in users:
+        # 1. Road Progress
+        completed_steps = session.exec(select(RoadStepProgress).where(
+            RoadStepProgress.user_id == u.id,
+            RoadStepProgress.is_completed == True
+        )).all()
+        nb_completed = len(completed_steps)
+        
+        global_progress = 0
+        if total_steps_count > 0:
+            global_progress = int((nb_completed / total_steps_count) * 100)
+            
+        # 2. Exercise Logs (Success Rate)
+        logs = session.exec(select(ExerciseLog).where(ExerciseLog.user_id == u.id)).all()
+        total_ex = len(logs)
+        correct_ex = sum(1 for l in logs if l.is_correct)
+        success_rate = 0
+        if total_ex > 0:
+            success_rate = int((correct_ex / total_ex) * 100)
+            
+        user_stats[u.id] = {
+            "global_progress": global_progress,
+            "nb_completed": nb_completed,
+            "total_steps": total_steps_count,
+            "total_exercises": total_ex,
+            "success_rate": success_rate
+        }
+
+    return templates.TemplateResponse("debug/stats.html", {
+        "request": request,
+        "user": user,
+        "users": users,
+        "user_stats": user_stats,
+        "active_tab": "stats"
+    })
+
+@app.get("/debug/exercises", response_class=HTMLResponse)
+def debug_exercises(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or user.username != "_ADMIN":
+        return RedirectResponse(url="/")
+        
     templates_dict = ContentManager.get_all_templates()
     subjects = ContentManager.get_all_subjects()
     
-    # Group templates by subject (based on prefix of ID or subject_id in templates)
+    # Group templates by subject
     grouped_templates = {}
     for t_id, t in templates_dict.items():
-        # Try to find which subject this template belongs to
-        # In this codebase, templates are usually loaded within a subject folder
-        # We'll use a simple heuristic or just group them all
         subject_id = "global"
-        # Heuristic: check if t_id starts with subject_id
         for s_id in subjects.keys():
             if t_id.startswith(s_id):
                 subject_id = s_id
@@ -725,7 +847,19 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
             grouped_templates[subject_id] = []
         grouped_templates[subject_id].append(t)
 
-    # Dialogues: events + file scan
+    return templates.TemplateResponse("debug/exercises.html", {
+        "request": request,
+        "user": user,
+        "grouped_templates": grouped_templates,
+        "subjects": subjects,
+        "active_tab": "exercises"
+    })
+
+@app.get("/debug/dialogues", response_class=HTMLResponse)
+def debug_dialogues(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or user.username != "_ADMIN":
+        return RedirectResponse(url="/")
+        
     dialogue_list = []
     
     # 1. From Events
@@ -746,12 +880,10 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, "content")
                 
-                # Guess subject
                 parts = rel_path.split(os.sep)
                 subject_id = parts[0] if len(parts) > 1 else "global"
                 if subject_id == "content": subject_id = "global"
 
-                # Check if already in list
                 if not any(d["path"] == rel_path or d["path"] == f for d in dialogue_list):
                      dialogue_list.append({
                          "id": f,
@@ -761,18 +893,27 @@ def debug_dashboard(request: Request, session: Session = Depends(get_session), u
                          "type": "file"
                      })
 
-    return templates.TemplateResponse("debug.html", {
+    return templates.TemplateResponse("debug/dialogues.html", {
         "request": request,
         "user": user,
-        "users": users,
-        "grouped_templates": grouped_templates,
-        "subjects": subjects,
-        "dialogues": dialogue_list
+        "dialogues": dialogue_list,
+        "active_tab": "dialogues"
+    })
+
+@app.get("/debug/animations", response_class=HTMLResponse)
+def debug_animations(request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user or user.username != "_ADMIN":
+        return RedirectResponse(url="/")
+        
+    return templates.TemplateResponse("debug/animations.html", {
+        "request": request,
+        "user": user,
+        "active_tab": "animations"
     })
 
 @app.get("/debug/view_dialogue", response_class=HTMLResponse)
 def debug_view_dialogue(path: str, subject: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if not user: return RedirectResponse(url="/")
+    if not user or user.username != "_ADMIN": return RedirectResponse(url="/")
     
     dialogue_content = ContentManager.get_dialogue(subject, path)
     if not dialogue_content:
@@ -782,7 +923,8 @@ def debug_view_dialogue(path: str, subject: str, request: Request, session: Sess
         "id": "debug",
         "title": f"Debug: {os.path.basename(path)}",
         "subject_id": subject,
-        "type": "dialogue"
+        "type": "dialogue",
+        "pages": [] 
     })
 
     return templates.TemplateResponse("dialogue.html", {
@@ -791,13 +933,153 @@ def debug_view_dialogue(path: str, subject: str, request: Request, session: Sess
         "step": dummy_step,
         "dialogue": dialogue_content,
         "characters": ContentManager.get_characters(),
-        "next_url": "/debug"
+        "next_url": "/debug/dialogues"
     })
 
 @app.get("/debug/test/{mode}/{template_id}", response_class=HTMLResponse)
 def debug_test_exercise(mode: str, template_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if not user:
+    if not user or user.username != "_ADMIN":
         return RedirectResponse(url="/")
+    
+    template = ContentManager.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    exercises = []
+    # Generer 10 exercices
+    for _ in range(10):
+        exercises.append(ExerciseEngine.generate_exercise(template))
+        
+    course_mock = {
+        "title": f"Debug: {template_id}",
+        "subject_id": "debug"
+    }
+    
+    step_mock = {
+        "id": f"debug_{template_id}",
+        "title": f"Test {mode.capitalize()}",
+        "type": mode
+    }
+
+    template_name = "test.html" if mode == "flash" else "practice.html" # Assuming practice template exists or reusing test
+    if mode == "practice": template_name = "test.html" # Reuse test for now
+
+    return templates.TemplateResponse(template_name, {
+        "request": request,
+        "user": user,
+        "step": step_mock,
+        "course": course_mock,
+        "exercises": exercises,
+        "back_url": "/debug/exercises",
+        "next_url": "/debug/exercises"
+    })
+
+@app.post("/log_exercise")
+def log_exercise(submission: Dict[str, Any], session: Session = Depends(get_session)):
+    user_id = submission.get("user_id")
+    ex_data = submission.get("exercise")
+    is_correct = submission.get("is_correct", False)
+    
+    if not user_id or not ex_data:
+        raise HTTPException(status_code=400, detail="Missing data")
+        
+    try:
+        tags = ex_data.get("tags", [])
+        if not tags and "tag" in ex_data:
+            tags = [ex_data.get("tag")]
+        if not tags: tags = ["unknown"]
+        
+        tag_str = ",".join(tags)
+        
+        log_entry = ExerciseLog(
+            user_id=user_id,
+            tag=tag_str,
+            question_id=ex_data.get("id"),
+            is_correct=is_correct,
+            timestamp=time.time(),
+            difficulty=str(ex_data.get("meta", {}).get("difficulty", "1"))
+        )
+        session.add(log_entry)
+        session.commit()
+    except Exception as e:
+        print(f"Logging error: {e}")
+        
+    return {"status": "ok"}
+
+@app.get("/debug/user/{user_id}", response_class=HTMLResponse)
+def debug_user_details(user_id: int, request: Request, filter_tag: Optional[str] = None, session: Session = Depends(get_session), admin: User = Depends(get_current_user)):
+    # Match debug_dashboard permissions: allow if logged in, strict admin check optional for dev
+    if not admin or admin.username != "_ADMIN":
+        return RedirectResponse(url="/")
+        
+    target_user = session.get(User, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Fetch logs
+    logs = session.exec(select(ExerciseLog).where(ExerciseLog.user_id == user_id)).all()
+    
+    # Process Logs with Hierarchical Aggregation
+    stats_by_tag = {}
+    
+    def increment_tag(tag, is_correct, timestamp, difficulty):
+        if tag not in stats_by_tag:
+            stats_by_tag[tag] = {
+                "total": 0,
+                "success": 0,
+                "last_attempt": 0,
+                "difficulty_dist": {}
+            }
+        stats = stats_by_tag[tag]
+        stats["total"] += 1
+        if is_correct:
+            stats["success"] += 1
+        stats["last_attempt"] = max(stats["last_attempt"], timestamp)
+        d_str = str(difficulty)
+        stats["difficulty_dist"][d_str] = stats["difficulty_dist"].get(d_str, 0) + 1
+
+    for l in logs:
+        # Split tags if they are comma separated (e.g. "math,logic")
+        raw_tags = l.tag.split(",") if l.tag else ["unknown"]
+        
+        for raw_tag in raw_tags:
+            raw_tag = raw_tag.strip()
+            if not raw_tag: continue
+            
+            # Hierarchical split: math.calcul.mul -> math, math.calcul, math.calcul.mul
+            parts = raw_tag.split(".")
+            for i in range(1, len(parts) + 1):
+                hierarchy_tag = ".".join(parts[:i])
+                increment_tag(hierarchy_tag, l.is_correct, l.timestamp, l.difficulty)
+
+    # Calculate percentages and prepare for display
+    final_stats = []
+    for tag, data in stats_by_tag.items():
+        # Apply filter if provided
+        if filter_tag and filter_tag not in tag:
+            continue
+            
+        rate = int((data["success"] / data["total"]) * 100) if data["total"] > 0 else 0
+        final_stats.append({
+            "tag": tag,
+            "total": data["total"],
+            "success": data["success"],
+            "rate": rate,
+            "last_attempt": time.strftime('%Y-%m-%d %H:%M', time.localtime(data["last_attempt"])),
+            "difficulty_dist": data["difficulty_dist"],
+            "level": tag.count(".") # For indentation in UI
+        })
+        
+    # Sort by tag name (alphabetical) to keep hierarchy logical
+    final_stats.sort(key=lambda x: x["tag"])
+
+    return templates.TemplateResponse("user_debug.html", {
+        "request": request,
+        "user": admin,
+        "target_user": target_user,
+        "stats": final_stats,
+        "filter_tag": filter_tag
+    })
         
     template = ContentManager.get_template(template_id)
     if not template:

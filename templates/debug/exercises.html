@@ -1,0 +1,50 @@
+{% extends "debug/base_debug.html" %}
+
+{% block debug_content %}
+<!-- Exercise Library -->
+<div class="section-card">
+    <h2 class="section-title">📚 Bibliothèque d'Exercices</h2>
+
+    {% for s_id, templates in grouped_templates.items() %}
+    <div class="subject-group">
+        <h3 class="subject-header">
+            {{ subjects[s_id].name if s_id in subjects else s_id | capitalize }}
+        </h3>
+        <div class="exercise-grid">
+            {% for t in templates %}
+            <div class="exercise-card">
+                <div class="exercise-info">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="exercise-id">{{ t.id }}</div>
+                        <div>
+                            <span class="difficulty-dot diff-{{ t.difficulty }}"></span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted);">Niv.{{ t.difficulty
+                                }}</span>
+                        </div>
+                    </div>
+                    <div style="font-weight: 600; margin-top: 0.3rem;">
+                        {{ t.content.question if t.content.question else "Sans titre" }}
+                    </div>
+                    <div class="exercise-tags">
+                        {% for tag in t.tags %}
+                        <span class="tag-badge">{{ tag }}</span>
+                        {% endfor %}
+                        <span class="tag-badge" style="background: rgba(139, 92, 246, 0.1); color: #a78bfa;">{{
+                            t.type }}</span>
+                    </div>
+                </div>
+                <div class="exercise-actions">
+                    <a href="/debug/test/practice/{{ t.id }}" class="btn-test btn-practice">
+                        🚀 Practice
+                    </a>
+                    <a href="/debug/test/flash/{{ t.id }}" class="btn-test btn-flash">
+                        ⚡ Flash
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

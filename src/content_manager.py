@@ -104,7 +104,7 @@ class ContentManager:
                                         
                                         cls._templates[t_id] = ExerciseTemplate(
                                             id=t_id,
-                                            tags=t_data.get("tags", []),
+                                            tags=t_data.get("tags") or t_data.get("target") or [],
                                             difficulty=t_data.get("difficulty", 1),
                                             vars=t_data.get("vars", {}),
                                             content=t_data.get("content", {}),

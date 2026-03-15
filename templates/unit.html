@@ -342,6 +342,129 @@
 
     const answersById = {};
 
+    function lockExerciseAsCorrect(exId) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+        const cont = document.getElementById(`ex-cont-${exId}`);
+        if (!cont) return;
+
+        const green = 'rgba(34, 197, 94, 0.15)';
+        const greenBorder = '#22c55e';
+
+        if (ex.type === 'input' || ex.type === 'fraction_scenario') {
+            const input = cont.querySelector('input');
+            if (input) {
+                if (!input.value) input.value = ex.answer;
+                input.readOnly = true;
+                input.style.cursor = 'default';
+                input.style.borderColor = greenBorder;
+                input.style.background = green;
+                input.style.color = greenBorder;
+                input.style.fontWeight = 'bold';
+            }
+        } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
+            const buttons = cont.querySelectorAll('.option-btn');
+            const correctAnswers = Array.isArray(ex.answer) ? ex.answer.map(String) : [String(ex.answer)];
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.style.cursor = 'default';
+                const btnVal = btn.innerText.trim();
+                const isCorrectBtn = correctAnswers.map(s => s.trim()).includes(btnVal);
+                const isSelected = btn.classList.contains('selected');
+                if (isSelected || isCorrectBtn) {
+                    btn.style.background = green;
+                    btn.style.borderColor = greenBorder;
+                    btn.style.color = greenBorder;
+                    btn.style.fontWeight = 'bold';
+                }
+            });
+        } else if (ex.type === 'cloze') {
+            const selects = cont.querySelectorAll('select');
+            selects.forEach((sel, i) => {
+                const correctVal = Array.isArray(ex.answer) ? ex.answer[i] : ex.answer;
+                if (!sel.value) sel.value = correctVal;
+                sel.disabled = true;
+                sel.style.borderColor = greenBorder;
+                sel.style.background = green;
+                sel.style.color = greenBorder;
+                sel.style.fontWeight = 'bold';
+            });
+        } else if (ex.type === 'drag_drop') {
+            const answers = Array.isArray(ex.answer) ? ex.answer : [ex.answer];
+            cont.querySelectorAll('.drop-zone').forEach((zone, i) => {
+                if (!zone.textContent.trim()) zone.textContent = answers[i];
+                zone.removeAttribute('ondrop');
+                zone.removeAttribute('ondragover');
+                zone.style.pointerEvents = 'none';
+                zone.style.borderColor = greenBorder;
+                zone.style.background = green;
+                zone.style.color = greenBorder;
+                zone.style.fontWeight = 'bold';
+                zone.classList.add('filled');
+            });
+            cont.querySelectorAll('.draggable-item').forEach(item => {
+                item.draggable = false;
+                item.style.cursor = 'default';
+                item.removeAttribute('ondragstart');
+                item.style.opacity = '0.4';
+            });
+        }
+    }
+
+    function lockExerciseAsWrong(exId) {
+        const ex = stepData.exercises.find(e => e.id === exId);
+        if (!ex) return;
+        const cont = document.getElementById(`ex-cont-${exId}`);
+        if (!cont) return;
+
+        const red = 'rgba(239, 68, 68, 0.15)';
+        const redBorder = '#ef4444';
+
+        if (ex.type === 'input' || ex.type === 'fraction_scenario') {
+            const input = cont.querySelector('input');
+            if (input) {
+                input.style.borderColor = redBorder;
+                input.style.background = red;
+                input.style.color = redBorder;
+            }
+        } else if (ex.type === 'qcm' || ex.type === 'multiselect') {
+            cont.querySelectorAll('.option-btn.selected').forEach(btn => {
+                btn.style.background = red;
+                btn.style.borderColor = redBorder;
+                btn.style.color = redBorder;
+            });
+        } else if (ex.type === 'cloze') {
+            cont.querySelectorAll('select').forEach(sel => {
+                sel.style.borderColor = redBorder;
+                sel.style.background = red;
+                sel.style.color = redBorder;
+            });
+        } else if (ex.type === 'drag_drop') {
+            cont.querySelectorAll('.drop-zone.filled').forEach(zone => {
+                zone.style.borderColor = redBorder;
+                zone.style.background = red;
+                zone.style.color = redBorder;
+            });
+        }
+    }
+
+    function resetExerciseVisuals(exId) {
+        const cont = document.getElementById(`ex-cont-${exId}`);
+        if (!cont) return;
+        cont.querySelectorAll('input').forEach(el => {
+            el.style.borderColor = ''; el.style.background = ''; el.style.color = '';
+        });
+        cont.querySelectorAll('select').forEach(el => {
+            el.style.borderColor = ''; el.style.background = ''; el.style.color = '';
+        });
+        cont.querySelectorAll('.option-btn').forEach(el => {
+            el.style.background = ''; el.style.borderColor = ''; el.style.color = '';
+        });
+        cont.querySelectorAll('.drop-zone').forEach(el => {
+            el.style.borderColor = ''; el.style.background = ''; el.style.color = '';
+        });
+    }
+
     function saveInputById(input, exId) { answersById[exId] = input.value; }
     function saveClozeById(sel, exId, idx) {
         if (!answersById[exId]) answersById[exId] = [];
@@ -425,7 +548,7 @@
         const actualCount = Array.isArray(userVal) ? userVal.filter(v => v).length : (userVal ? 1 : 0);
 
         if (actualCount < expectedCount) {
-            alert("Réponds à la question avant de vérifier !"); return;
+            showPopup("Réponds à la question avant de vérifier !", "Oups !", "warning"); return;
         }
 
         let isCorrect = false;
@@ -447,6 +570,23 @@
         if (isCorrect) {
             fb.innerHTML = "✅ Très bien !"; fb.style.color = "var(--success)"; fb.style.display = "block";
             btn.style.display = "none"; wrapper.style.borderColor = "var(--success)";
+            lockExerciseAsCorrect(exId);
+
+            // Trigger visual feedback (New Flash content available)
+            if (typeof triggerFlashAnimation === 'function') {
+                triggerFlashAnimation();
+            }
+
+            // Persist progress to server
+            fetch('/log_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    exercise: ex,
+                    is_correct: true
+                })
+            }).catch(e => console.error("Logging error:", e));
 
             // Check if all exercises in this section are done
             const sectionWrapper = document.getElementById(`section-${sectionIdx}`);
@@ -461,7 +601,12 @@
         } else {
             fb.innerHTML = "❌ Essaie encore !"; fb.style.color = "var(--error)"; fb.style.display = "block";
             wrapper.style.borderColor = "var(--error)";
-            setTimeout(() => { wrapper.style.borderColor = "var(--glass-border)"; fb.style.display = "none"; }, 2000);
+            lockExerciseAsWrong(exId);
+            setTimeout(() => {
+                wrapper.style.borderColor = "var(--glass-border)";
+                fb.style.display = "none";
+                resetExerciseVisuals(exId);
+            }, 2000);
         }
     }
 
@@ -473,7 +618,13 @@
             if (btn) btn.remove();
         });
         document.querySelectorAll('button.btn-primary').forEach(b => b.style.display = "none");
-        document.querySelectorAll('.interleaved-exercise').forEach(w => w.style.borderColor = "var(--success)");
+        document.querySelectorAll('.interleaved-exercise').forEach(w => {
+            w.style.borderColor = "var(--success)";
+            const fb = w.querySelector('[id^="ex-fb-"]');
+            if (fb) { fb.innerHTML = "✅ Très bien !"; fb.style.color = "var(--success)"; fb.style.display = "block"; }
+        });
+        // Lock all exercises and show correct answers in green
+        stepData.exercises.forEach(ex => lockExerciseAsCorrect(ex.id));
         document.getElementById('final-footer').style.display = 'block';
     }
 
@@ -499,7 +650,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert("Erreur lors de la validation");
+            showPopup("Erreur lors de la validation", "Erreur", "error");
         }
     }
 </script>
