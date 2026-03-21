@@ -90,6 +90,7 @@
 {% block scripts %}
 <script src="/static/js/fraction_renderer.js"></script>
 <script src="/static/js/blueprint_renderer.js"></script>
+<script src="/static/js/touch_dragdrop.js"></script>
 <script>
     // Pass the GENERATED exercises here, not the course.exercises directly
     const stepData = {
@@ -109,6 +110,17 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         renderExercises();
+
+        // Touch drag-drop (mobile only, pointer: coarse)
+        if (window.TouchDragDrop) {
+            TouchDragDrop.init(document.getElementById('exercises-list'), function(zone, value, zoneId) {
+                const match = zoneId.match(/^zone-(.+)-(\d+)$/);
+                if (!match) return;
+                const exId = match[1], zoneIndex = parseInt(match[2]);
+                if (!userAnswers[exId]) userAnswers[exId] = [];
+                userAnswers[exId][zoneIndex] = value;
+            });
+        }
 
         // Render Math with KaTeX
         renderMathInElement(document.getElementById('exercises-list'), {
@@ -187,8 +199,8 @@
                     newHtml += part;
                     if (i < parts.length - 1) {
                         newHtml += `
-                            <select onchange="saveCloze(this, '${ex.id}', ${i})" 
-                                    style="padding: 0.2rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
+                            <select onchange="saveCloze(this, '${ex.id}', ${i})"
+                                    style="padding: 0.4rem 0.6rem; min-height: 44px; font-size: 1rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
                                 <option value="">...</option>
                                 ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                             </select>
@@ -225,7 +237,7 @@
                 contentHtml = `
                     <p style="margin-bottom: 0.5rem; font-size: 1.2rem;">${ex.question || ex.template || ''}</p>
                     ${isMulti ? '<p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 1.5rem;">(Plusieurs réponses possibles)</p>' : ''}
-                    <div class="options-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="options-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 1rem;">
                         ${options.map((opt, optIndex) => {
                     return `
                                 <button class="option-btn" onclick="selectOption(this, '${ex.id}', ${optIndex})">

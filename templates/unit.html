@@ -115,6 +115,7 @@
 
 {% block scripts %}
 <script src="/static/js/fraction_renderer.js"></script>
+<script src="/static/js/touch_dragdrop.js"></script>
 <script>
     const stepData = {
         id: "{{ step.id }}",
@@ -170,6 +171,14 @@
 
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = marked.parse(protectedContent);
+
+        // Wrap tables in a scrollable container
+        tempDiv.querySelectorAll('table').forEach(table => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'table-scroll-wrapper';
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+        });
 
         // Restore Math safely
         tempDiv.querySelectorAll('.math-px').forEach(span => {
@@ -297,6 +306,15 @@
                     `).join('')}
                 </div>
             `;
+            if (window.TouchDragDrop) {
+                TouchDragDrop.init(contentDiv, function(zone, value, zoneId) {
+                    const match = zoneId.match(/^zone-(.+)-(\d+)$/);
+                    if (!match) return;
+                    const zoneIndex = parseInt(match[2]);
+                    if (!Array.isArray(answersById[exId])) answersById[exId] = [];
+                    answersById[exId][zoneIndex] = value;
+                });
+            }
         } else if (ex.type === 'fraction_scenario') {
             const visualId = `vs-${exId}`;
             contentDiv.innerHTML = `
@@ -315,8 +333,8 @@
                 newHtml += part;
                 if (i < parts.length - 1) {
                     newHtml += `
-                        <select onchange="saveClozeById(this, '${exId}', ${i})" 
-                                style="padding: 0.1rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
+                        <select onchange="saveClozeById(this, '${exId}', ${i})"
+                                style="padding: 0.4rem 0.6rem; min-height: 44px; font-size: 1rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border);">
                             <option value="">...</option>
                             ${ex.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                         </select>

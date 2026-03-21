@@ -27,9 +27,12 @@ L'application cible des élèves qui ont besoin de revoir les fondamentaux math�
 | Exercices générés | Questions dynamiques avec variables aléatoires |
 | Mode Flash | Session courte d'entraînement ciblant les points faibles |
 | Renforcement adaptatif | Exercices sélectionnés selon l'historique de l'élève |
+| Feedback coloré | Réponses affichées en vert/rouge en lecture seule après correction |
 | Gamification | XP, niveaux, confettis, animations de réussite |
 | Thème clair/sombre | Bascule persistée en localStorage |
 | Interface admin | Debug, validation, reset, visualisation des stats |
+| PWA installable | Application installable sur mobile et bureau, cache offline |
+| Design responsive | Adaptatif 480px / 640px / 768px, drag-drop tactile |
 
 ---
 
@@ -42,6 +45,7 @@ L'application cible des élèves qui ont besoin de revoir les fondamentaux math�
 | Base de données | SQLite (`content.db`) |
 | Templates | Jinja2 |
 | Frontend | HTML5 / CSS3 (vanilla) |
+| PWA | Service Worker + Web App Manifest |
 | Math rendering | KaTeX (CDN) |
 | Markdown | Marked.js (CDN) |
 | Animations | Canvas Confetti (CDN) |
@@ -79,7 +83,17 @@ cours/
 │       ├── math_generator.py
 │       └── ...
 ├── templates/              # Gabarits Jinja2 HTML
-├── static/                 # CSS, JS, images
+├── static/
+│   ├── css/
+│   │   ├── style.css       # Styles principaux
+│   │   └── responsive.css  # Breakpoints mobile (480/640/768px)
+│   ├── js/
+│   │   ├── fraction_renderer.js
+│   │   ├── blueprint_renderer.js
+│   │   ├── touch_dragdrop.js   # Drag-drop tactile (tap-sélect-tap)
+│   │   └── sw.js               # Service Worker PWA
+│   ├── images/
+│   └── manifest.json       # Web App Manifest (PWA)
 ├── content/                # Contenu pédagogique (YAML + MD)
 │   ├── cours.yaml          # Manifeste principal
 │   └── maths/              # Matière mathématiques

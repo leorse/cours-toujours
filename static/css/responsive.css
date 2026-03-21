@@ -1,0 +1,223 @@
+/* =============================================================
+   RESPONSIVE.CSS — Mobile-first additions (desktop unchanged)
+   Breakpoints: 768px | 640px | 480px
+   ============================================================= */
+
+/* --- Touch drag-drop visual states --- */
+.draggable-item.touch-selected {
+    background: var(--primary) !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px var(--primary-dark, #3d7a22);
+}
+
+.drop-zone.touch-ready {
+    border-color: var(--primary) !important;
+    background: rgba(85, 166, 48, 0.15) !important;
+    animation: pulse-border 1s ease infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { border-color: var(--primary); }
+    50%       { border-color: var(--primary-dark, #3d7a22); }
+}
+
+/* =============================================================
+   768px — Tablettes & grands téléphones
+   ============================================================= */
+@media (max-width: 768px) {
+    /* Navbar */
+    .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem !important;
+    }
+
+    .user-snippet {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        font-size: 0.9rem;
+    }
+
+    /* Dialogue monologue: empiler character au-dessus de la bulle */
+    .dialogue-content {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .character-area {
+        flex: 0 0 auto !important;
+        width: 140px;
+        margin: 0 auto;
+    }
+
+    /* Flèche de la bulle vers le haut */
+    .speech-bubble::after {
+        left: 50% !important;
+        top: -20px !important;
+        transform: translateX(-50%) !important;
+        border-width: 0 10px 20px 10px !important;
+        border-color: transparent transparent rgba(255, 255, 255, 0.95) transparent !important;
+    }
+
+    /* Chat SMS */
+    .sms-container {
+        flex-direction: column;
+        min-height: unset !important;
+        height: calc(100vh - 140px);
+        height: calc(100dvh - 140px);
+        padding: 1rem !important;
+    }
+
+    .avatars-sidebar {
+        display: none !important;
+    }
+
+    .chat-area {
+        height: 100%;
+        min-height: 0;
+    }
+
+    #sms-next-btn {
+        min-height: 52px;
+        font-size: 1.1rem;
+    }
+}
+
+/* =============================================================
+   640px — Téléphones standard
+   ============================================================= */
+@media (max-width: 640px) {
+    /* Tables : police réduite sur mobile */
+    .content-area table,
+    #progressive-content table {
+        font-size: 0.82rem;
+    }
+
+    .content-area th,
+    #progressive-content th {
+        padding: 0.35rem 0.5rem;
+    }
+
+    .content-area td,
+    #progressive-content td {
+        padding: 0.3rem 0.45rem;
+    }
+
+    /* Container */
+    .container {
+        padding: 0 0.75rem;
+    }
+
+    /* Grilles */
+    .subject-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.75rem;
+    }
+
+    /* Exercices QCM : 1 colonne */
+    .options-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Boutons options : touch targets 44px min */
+    .option-btn {
+        min-height: 44px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+    }
+
+    /* Selects (cloze) */
+    select {
+        padding: 0.4rem 0.6rem !important;
+        min-height: 44px !important;
+        font-size: 1rem !important;
+    }
+
+    /* Inputs texte */
+    input[type="text"] {
+        font-size: 1rem !important;
+        min-height: 44px !important;
+    }
+
+    /* Flash mode */
+    .question-text {
+        font-size: 1.4rem !important;
+    }
+
+    .flash-input {
+        font-size: 1.1rem !important;
+    }
+
+    .progress-bar-container {
+        top: 60px !important;
+        width: 92% !important;
+    }
+
+    /* Navbar logo */
+    .logo img {
+        height: 36px !important;
+    }
+
+    /* Glass panels : moins de padding */
+    .glass-panel {
+        padding: 1.25rem !important;
+    }
+
+    /* Dialogue monologue : character plus petit */
+    .character-area {
+        width: 110px !important;
+    }
+}
+
+/* =============================================================
+   480px — Petits téléphones (iPhone SE, vieux Android)
+   ============================================================= */
+@media (max-width: 480px) {
+    /* Glass */
+    .glass,
+    .glass-panel {
+        padding: 1rem !important;
+        border-radius: 1rem !important;
+    }
+
+    /* Profil : 1 colonne */
+    .profile-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Drag-drop items */
+    .draggable-item {
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    .drop-zone {
+        min-width: 70px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Masquer les liens admin dans la navbar */
+    .badge-admin,
+    a[href="/debug"],
+    a[href="/admin/validate_all"],
+    a[href="/admin/reset_all"] {
+        display: none !important;
+    }
+
+    /* Titre de test page */
+    .test-container header h1 {
+        font-size: 1.6rem;
+    }
+}

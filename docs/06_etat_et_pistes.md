@@ -17,8 +17,10 @@
 - Système de parcours multi-étapes multi-pages
 - Génération d'exercices déclaratifs via templates YAML
 - Correction automatique avec `smart_compare` (strings, nombres, fractions, listes)
+- **Feedback coloré après correction** : vert/rouge, lecture seule, revisit avec bonnes réponses affichées
 - Dialogues monologue (personnage + texte)
 - Dialogues SMS (deux personnages avec sprites)
+- Condition `first_view` sur les dialogues de page (suivi via `UserEvent` préfixé `step_page_*`)
 - Mode flash adaptatif (ciblage points faibles)
 - Renforcement adaptatif (règle 60/20/20)
 - Système de mastery (0→3) pour les étapes flash/validation
@@ -26,10 +28,13 @@
 - Thème clair/sombre
 - Panel admin complet (stats, debug, validation)
 - Agrégation hiérarchique des stats par tags
-- Condition `first_view` sur les dialogues et événements
 - Exercices inline dans les cours (`&&id&&`)
 - Rendu KaTeX pour les formules mathématiques
 - Blueprints visuels pour les fractions (Pizza, Grid, Cylinder)
+- **Tables Markdown** : bordures, alternance de lignes, scroll horizontal sur mobile
+- **PWA installable** : manifest + service worker (cache-first static/CDN, network-first pages)
+- **Design responsive** : breakpoints 480/640/768px, touch targets 44px
+- **Drag-drop mobile** : module `touch_dragdrop.js` (tap-sélect-tap, détection `pointer: coarse`)
 
 ---
 
@@ -55,9 +60,9 @@
 
 ### UX
 
-- **Mobile** : le layout SMS/dialogues masque les avatars en dessous de 768px.
 - **Pas de retour arrière** sur les exercices : une fois soumis, impossible de revenir.
 - **Pas de feedback immédiat** en mode monologue (pas d'animation de transition entre slides).
+- **Icônes PWA** : `logo.png` est utilisé tel quel pour les icônes 192px et 512px. Pour un install prompt correct sur tous les navigateurs, générer des fichiers `logo-192.png` et `logo-512.png` aux bonnes dimensions.
 
 ---
 
@@ -84,3 +89,5 @@
 - Dockerisation
 - Passage à PostgreSQL pour un déploiement multi-instances
 - Système de sauvegarde de la base SQLite
+- Générer des icônes PWA aux dimensions correctes (192×192 et 512×512) depuis `logo.png`
+- Incrémenter `CACHE_NAME` dans `sw.js` à chaque déploiement pour forcer le rechargement du cache

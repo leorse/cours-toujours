@@ -270,6 +270,8 @@ body.dark-mode {
 .content-area {
     line-height: 1.8;
     font-size: 1.2rem;
+    min-width: 0; /* Empêche les enfants (tables) de faire déborder la grille */
+    overflow-x: hidden;
 }
 
 .content-area h1,
@@ -287,6 +289,54 @@ body.dark-mode {
     padding: 0.2em 0.4em;
     border-radius: 6px;
     font-family: monospace;
+}
+
+/* Tables markdown */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    width: 100%;
+    margin: 1.5rem 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.content-area table,
+#progressive-content table {
+    border-collapse: collapse;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.content-area thead,
+#progressive-content thead {
+    background: var(--primary);
+    color: white;
+}
+
+.content-area th,
+#progressive-content th {
+    padding: 0.6rem 1rem;
+    text-align: center;
+    border: 2px solid var(--primary-dark, #3d7a22);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.content-area td,
+#progressive-content td {
+    padding: 0.5rem 0.8rem;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+    white-space: nowrap;
+}
+
+.content-area tr:nth-child(even),
+#progressive-content tr:nth-child(even) {
+    background: rgba(85, 166, 48, 0.06);
+}
+
+.content-area tr:hover,
+#progressive-content tr:hover {
+    background: rgba(85, 166, 48, 0.12);
 }
 
 .blocks-math {
