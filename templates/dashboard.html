@@ -10,17 +10,19 @@
 
 <div class="subject-grid">
     {% for subject in subjects %}
-    <a href="/subjects/{{ subject.id }}" class="glass glass-panel subject-card animate-fade-in">
-        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">{{ subject.name }}</h3>
+    <a href="/subjects/{{ subject.id }}" class="glass glass-panel subject-card animate-fade-in"
+       {% if subject.image %}style="background-image: url('/static/images/{{ subject.image }}'); background-size: cover; background-position: center;"{% endif %}>
+        <div class="subject-card-overlay">
+            <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem; background-color: aliceblue; border: 1px solid black; padding-left: 5px">{{ subject.name }}</h3>
 
-        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted);">
-            <span>Niveau {{ (progress.get(subject.id, 0) // 100) + 1 }}</span>
-            <span>{{ progress.get(subject.id, 0) }} XP</span>
-        </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted); background-color: aliceblue; border: 1px solid black; padding-left: 5px; padding-right: 5px;">
+                <span>Niveau {{ (progress.get(subject.id, 0) // 100) + 1 }}</span>
+                <span>{{ progress.get(subject.id, 0) }} XP</span>
+            </div>
 
-        <div class="progress-bar">
-            <!-- Simple calculation for progress within level -->
-            <div class="progress-fill" style="width: {{ progress.get(subject.id, 0) % 100 }}%"></div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ progress.get(subject.id, 0) % 100 }}%"></div>
+            </div>
         </div>
     </a>
     {% endfor %}

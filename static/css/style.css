@@ -187,13 +187,24 @@ body.dark-mode {
     border: 3px solid var(--text);
     border-radius: var(--radius);
     box-shadow: 6px 6px 0px var(--primary);
-    padding: 2rem;
+    padding: 0;
+    overflow: hidden;
     transition: all 0.2s;
 }
 
 .subject-card:hover {
     transform: translate(-4px, -4px);
     box-shadow: 10px 10px 0px var(--primary);
+}
+
+.subject-card-overlay {
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.20);
+    height: 100%;
+}
+
+body.dark-mode .subject-card-overlay {
+    background: rgba(30, 30, 46, 0.82);
 }
 
 .progress-bar {

@@ -57,9 +57,26 @@ class ContentManager:
                          )
                 continue
 
-            rel_path = entry.get("page")
+            page_entry = entry.get("page")
+
+            # 3 formats supportés :
+            # 1. page: chemin.yaml                        (string)
+            # 2. page:\n    content: chemin.yaml\n    image: ... (dict imbriqué, indentation correcte)
+            # 3. page: null + content:/image: en clés sœurs  (mauvaise indentation YAML tolérée)
+            if isinstance(page_entry, dict):
+                rel_path = page_entry.get("content")
+                subject_image = page_entry.get("image")
+            elif isinstance(page_entry, str):
+                rel_path = page_entry
+                subject_image = None
+            elif page_entry is None and "content" in entry:
+                rel_path = entry.get("content")
+                subject_image = entry.get("image")
+            else:
+                continue
+
             if not rel_path: continue
-            
+
             road_path = os.path.join(CONTENT_DIR, rel_path)
             
             if not os.path.exists(road_path):
@@ -80,7 +97,7 @@ class ContentManager:
             cls._load_templates(subject_id, subject_path)
             
             # 2. Charger la route
-            cls._load_road(subject_id, road_path)
+            cls._load_road(subject_id, road_path, subject_image)
             
         print(f"✅ Chargement terminé: {len(cls._subjects)} sujets, {len(cls._road_steps)} étapes, {len(cls._templates)} templates.")
 
@@ -118,14 +135,14 @@ class ContentManager:
                         print(f"❌ Erreur templates {yaml_path}: {e}")
 
     @classmethod
-    def _load_road(cls, subject_id: str, road_path: str):
+    def _load_road(cls, subject_id: str, road_path: str, subject_image: str = None):
         try:
             with open(road_path, "r", encoding="utf-8") as f:
                 road_data = yaml.safe_load(f)
             if not road_data: return
 
             subject_name = road_data.get("title", subject_id.capitalize())
-            cls._subjects[subject_id] = Subject(id=subject_id, name=subject_name)
+            cls._subjects[subject_id] = Subject(id=subject_id, name=subject_name, image=subject_image)
             
             if "road" in road_data:
                 global_idx = 0

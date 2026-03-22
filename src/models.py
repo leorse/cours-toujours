@@ -16,6 +16,7 @@ class Event(SQLModel):
 class Subject(SQLModel):
     id: str # ex: "maths"
     name: str
+    image: Optional[str] = None  # ex: "fonds/fond_mathematique.png"
 
 class Course(SQLModel):
     id: str # ex: "math_01"
