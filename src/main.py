@@ -175,33 +175,74 @@ def subject_page(subject_id: str, request: Request, session: Session = Depends(g
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
         
-    # Get all road steps for this subject from ContentManager
-    steps = ContentManager.get_steps_for_subject(subject_id)
-    
-    # Calculate completed steps
+    chapters = ContentManager.get_chapters_for_subject(subject_id)
+    # Fallback : si pas de chapitres (format legacy road:), on crée un chapitre virtuel
+    if not chapters:
+        steps = ContentManager.get_steps_for_subject(subject_id)
+        chapters_with_steps = [{"chapter": None, "steps": steps}]
+    else:
+        chapters_with_steps = [
+            {"chapter": chap, "steps": ContentManager.get_steps_for_chapter(chap.id)}
+            for chap in chapters
+        ]
+
+    # Tous les steps à plat pour la logique de complétion
+    all_steps = ContentManager.get_steps_for_subject(subject_id)
+
     completed_entries = []
     try:
         completed_entries = session.exec(select(RoadStepProgress).where(
-            RoadStepProgress.user_id == user.id, 
+            RoadStepProgress.user_id == user.id,
             RoadStepProgress.is_completed == True
         )).all()
-        
         all_progress = session.exec(select(RoadStepProgress).where(
             RoadStepProgress.user_id == user.id
         )).all()
-        
         mastery_map = {p.step_id: p.mastery for p in all_progress}
-        
     except Exception as e:
         print(f"ERROR fetching progress: {e}")
         mastery_map = {}
-        
+
     completed_steps = [p.step_id for p in completed_entries]
-    
+
     return templates.TemplateResponse("subject.html", {
         "request": request,
         "user": user,
         "subject": subject,
+        "chapters_with_steps": chapters_with_steps,
+        "all_steps": all_steps,
+        "completed_steps": completed_steps,
+        "mastery_map": mastery_map
+    })
+
+@app.get("/subjects/{subject_id}/chapters/{chapter_id}", response_class=HTMLResponse)
+def chapter_page(subject_id: str, chapter_id: str, request: Request, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/")
+
+    subject = ContentManager.get_subject(subject_id)
+    chapter = next((c for c in ContentManager.get_chapters_for_subject(subject_id) if c.id == chapter_id), None)
+    if not subject or not chapter:
+        raise HTTPException(status_code=404, detail="Chapitre introuvable")
+
+    steps = ContentManager.get_steps_for_chapter(chapter_id)
+
+    completed_entries = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id,
+        RoadStepProgress.is_completed == True
+    )).all()
+    all_progress = session.exec(select(RoadStepProgress).where(
+        RoadStepProgress.user_id == user.id
+    )).all()
+
+    completed_steps = [p.step_id for p in completed_entries]
+    mastery_map = {p.step_id: p.mastery for p in all_progress}
+
+    return templates.TemplateResponse("chapter.html", {
+        "request": request,
+        "user": user,
+        "subject": subject,
+        "chapter": chapter,
         "steps": steps,
         "completed_steps": completed_steps,
         "mastery_map": mastery_map

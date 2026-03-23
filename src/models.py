@@ -44,6 +44,13 @@ class ExerciseTemplate(SQLModel):
     multiple: bool = False
     type: str = "template" # "template" or "math_engine"
 
+class Chapter(SQLModel):
+    id: str
+    title: str
+    subject_id: str
+    order: int
+    icon: Optional[str] = None
+
 class RoadStep(SQLModel):
     id: str # course_id_theory, course_id_simple, etc.
     title: str
@@ -66,6 +73,7 @@ class RoadStep(SQLModel):
     strategy: Optional[str] = "weakest_points"
     
     subject_id: str
+    chapter_id: Optional[str] = None
     activated: bool = False
     pages: List[Dict[str, Any]] = []
 

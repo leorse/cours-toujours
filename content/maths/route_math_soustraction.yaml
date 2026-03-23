@@ -1,0 +1,7 @@
+chapter:
+  # 1. Apprentissage théorique
+  - id: intro_sous
+    title: "Soustraction"
+    pages:
+      - type: "cours"
+        content: "calculs/additions.md"

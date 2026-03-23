@@ -1,0 +1,7 @@
+chapter:
+  # 1. Apprentissage théorique
+  - id: intro_add
+    title: "Addition"
+    pages:
+      - type: "cours"
+        content: "calculs/additions.md"
