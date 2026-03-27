@@ -4,5 +4,10 @@ cours:
      type: dialogue
      id: intro_mul_dialogue
      content: "calculs/dialogue_intro.yaml"
- - page: maths/route_math.yaml
+ - page:
+     content: maths/route_math.yaml
+     image: fonds/fond_mathematique.png
+ - page:
+     content: histoire/route_histoire.yaml
+     image: fonds/fond_histoire.png
  - page: fourre_tout/route_test.yaml

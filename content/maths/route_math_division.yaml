@@ -1,0 +1,7 @@
+chapter:
+  # 1. Apprentissage théorique
+  - id: intro_div
+    title: "Division"
+    pages:
+      - type: "cours"
+        content: "calculs/division.md"

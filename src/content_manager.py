@@ -2,20 +2,22 @@ import os
 import yaml
 import frontmatter
 from typing import List, Dict, Optional, Any
-from src.models import Subject, RoadStep, Course, Exercise, ExerciseTemplate, Event
+from src.models import Subject, Chapter, RoadStep, Course, Exercise, ExerciseTemplate, Event
 
 CONTENT_DIR = "content"
 
 class ContentManager:
     _subjects: Dict[str, Subject] = {}
+    _chapters: Dict[str, Chapter] = {}
     _road_steps: Dict[str, RoadStep] = {}
     _templates: Dict[str, ExerciseTemplate] = {}
     _events: Dict[str, Event] = {}
-    
+
     @classmethod
     def load_all(cls):
         print("🔄 Chargement dynamique du contenu...")
         cls._subjects = {}
+        cls._chapters = {}
         cls._road_steps = {}
         cls._templates = {}
         
@@ -57,9 +59,26 @@ class ContentManager:
                          )
                 continue
 
-            rel_path = entry.get("page")
+            page_entry = entry.get("page")
+
+            # 3 formats supportés :
+            # 1. page: chemin.yaml                        (string)
+            # 2. page:\n    content: chemin.yaml\n    image: ... (dict imbriqué, indentation correcte)
+            # 3. page: null + content:/image: en clés sœurs  (mauvaise indentation YAML tolérée)
+            if isinstance(page_entry, dict):
+                rel_path = page_entry.get("content")
+                subject_image = page_entry.get("image")
+            elif isinstance(page_entry, str):
+                rel_path = page_entry
+                subject_image = None
+            elif page_entry is None and "content" in entry:
+                rel_path = entry.get("content")
+                subject_image = entry.get("image")
+            else:
+                continue
+
             if not rel_path: continue
-            
+
             road_path = os.path.join(CONTENT_DIR, rel_path)
             
             if not os.path.exists(road_path):
@@ -80,7 +99,7 @@ class ContentManager:
             cls._load_templates(subject_id, subject_path)
             
             # 2. Charger la route
-            cls._load_road(subject_id, road_path)
+            cls._load_road(subject_id, road_path, subject_image)
             
         print(f"✅ Chargement terminé: {len(cls._subjects)} sujets, {len(cls._road_steps)} étapes, {len(cls._templates)} templates.")
 
@@ -118,66 +137,108 @@ class ContentManager:
                         print(f"❌ Erreur templates {yaml_path}: {e}")
 
     @classmethod
-    def _load_road(cls, subject_id: str, road_path: str):
+    def _load_road(cls, subject_id: str, road_path: str, subject_image: str = None):
         try:
             with open(road_path, "r", encoding="utf-8") as f:
                 road_data = yaml.safe_load(f)
             if not road_data: return
 
             subject_name = road_data.get("title", subject_id.capitalize())
-            cls._subjects[subject_id] = Subject(id=subject_id, name=subject_name)
+            cls._subjects[subject_id] = Subject(id=subject_id, name=subject_name, image=subject_image)
             
-            if "road" in road_data:
-                global_idx = 0
-                for step_entry in road_data["road"]:
-                    s_type = step_entry.get("type", "cours")
-                    
-                    if s_type == "sequence":
-                        # Expansion de la séquence
-                        repeat = step_entry.get("repeat", 1)
-                        step_config = step_entry.get("step_config", {})
-                        
-                        for i in range(1, repeat + 1):
-                            s_id = f"{step_entry['id']}_{i}"
-                            # Remplacement de {index} dans les strings de config
-                            title = step_entry.get("title", "").replace("{index}", str(i))
-                            
-                            # On clone et adapte la selection
-                            selection = None
-                            if "selection" in step_config:
-                                raw_sel = yaml.dump(step_config["selection"])
-                                selection = yaml.safe_load(raw_sel.replace("{index}", str(i)))
+            global_idx = 0
 
-                            cls._road_steps[s_id] = RoadStep(
-                                id=s_id,
-                                title=title,
-                                type=step_config.get("type", "practice"),
-                                order=global_idx,
-                                subject_id=subject_id,
-                                selection=selection,
-                                activated=step_entry.get("activated", False),
-                                pages=step_config.get("pages", [])
-                            )
-                            global_idx += 1
+            # Format avec chapitres : chapters: [{id, title, icon, road: [...] ou road: "fichier.yaml"}]
+            if "chapters" in road_data:
+                for chap_order, chap_entry in enumerate(road_data["chapters"]):
+                    chap_id = chap_entry.get("id", f"chap_{chap_order}")
+                    cls._chapters[chap_id] = Chapter(
+                        id=chap_id,
+                        title=chap_entry.get("title", chap_id),
+                        subject_id=subject_id,
+                        order=chap_order,
+                        icon=chap_entry.get("icon")
+                    )
+                    road_val = chap_entry.get("road", [])
+                    # road peut être une liste inline ou un chemin vers un fichier yaml
+                    if isinstance(road_val, str):
+                        chap_file = os.path.join(os.path.dirname(road_path), road_val)
+                        road_entries = cls._load_chapter_file(chap_file)
                     else:
-                        s_id = step_entry["id"]
-                        cls._road_steps[s_id] = RoadStep(
-                            id=s_id,
-                            title=step_entry.get("title", s_id.capitalize()),
-                            subtitle=step_entry.get("subtitle"),
-                            type=s_type,
-                            order=global_idx,
-                            subject_id=subject_id,
-                            content_file=step_entry.get("content"),
-                            selection=step_entry.get("selection"),
-                            scope=step_entry.get("scope"),
-                            strategy=step_entry.get("strategy", "weakest_points"),
-                            activated=step_entry.get("activated", False),
-                            pages=step_entry.get("pages", [])
-                        )
-                        global_idx += 1
+                        road_entries = road_val
+                    cls._load_steps(subject_id, road_entries, global_idx, chap_id)
+                    loaded = len([s for s in cls._road_steps.values() if s.chapter_id == chap_id])
+                    print(f"  📌 Chapitre '{chap_id}': {loaded} étapes chargées")
+                    global_idx += len(road_entries)
+
+            # Format plat legacy : road: [...]
+            elif "road" in road_data:
+                cls._load_steps(subject_id, road_data["road"], global_idx, chapter_id=None)
         except Exception as e:
             print(f"❌ Erreur route {road_path}: {e}")
+
+    @classmethod
+    def _load_chapter_file(cls, file_path: str) -> list:
+        """Charge un fichier yaml de chapitre et retourne la liste des étapes (clé 'chapter:')."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if data and "chapter" in data:
+                return data["chapter"]
+            else:
+                print(f"⚠️ Clé 'chapter' introuvable dans {file_path}. Clés: {list(data.keys()) if data else 'vide'}")
+        except Exception as e:
+            print(f"❌ Erreur lecture chapitre {file_path}: {e}")
+        return []
+
+    @classmethod
+    def _load_steps(cls, subject_id: str, road_entries: list, start_idx: int, chapter_id: Optional[str]):
+        global_idx = start_idx
+        for step_entry in road_entries:
+            s_type = step_entry.get("type", "cours")
+
+            if s_type == "sequence":
+                repeat = step_entry.get("repeat", 1)
+                step_config = step_entry.get("step_config", {})
+                for i in range(1, repeat + 1):
+                    raw_id = f"{step_entry['id']}_{i}"
+                    s_id = f"{subject_id}.{raw_id}"
+                    title = step_entry.get("title", "").replace("{index}", str(i))
+                    selection = None
+                    if "selection" in step_config:
+                        raw_sel = yaml.dump(step_config["selection"])
+                        selection = yaml.safe_load(raw_sel.replace("{index}", str(i)))
+                    cls._road_steps[s_id] = RoadStep(
+                        id=s_id,
+                        title=title,
+                        type=step_config.get("type", "practice"),
+                        order=global_idx,
+                        subject_id=subject_id,
+                        chapter_id=chapter_id,
+                        selection=selection,
+                        activated=step_entry.get("activated", False),
+                        pages=step_config.get("pages", [])
+                    )
+                    global_idx += 1
+            else:
+                raw_id = step_entry["id"]
+                s_id = f"{subject_id}.{raw_id}"
+                cls._road_steps[s_id] = RoadStep(
+                    id=s_id,
+                    title=step_entry.get("title", s_id.capitalize()),
+                    subtitle=step_entry.get("subtitle"),
+                    type=s_type,
+                    order=global_idx,
+                    subject_id=subject_id,
+                    chapter_id=chapter_id,
+                    content_file=step_entry.get("content"),
+                    selection=step_entry.get("selection"),
+                    scope=step_entry.get("scope"),
+                    strategy=step_entry.get("strategy", "weakest_points"),
+                    activated=step_entry.get("activated", False),
+                    pages=step_entry.get("pages", [])
+                )
+                global_idx += 1
 
     @classmethod
     def get_subjects(cls) -> List[Subject]: return list(cls._subjects.values())
@@ -188,8 +249,16 @@ class ContentManager:
     @classmethod
     def get_all_templates(cls) -> Dict[str, ExerciseTemplate]: return cls._templates
     @classmethod
+    def get_chapters_for_subject(cls, subject_id: str) -> List[Chapter]:
+        chapters = [c for c in cls._chapters.values() if c.subject_id == subject_id]
+        return sorted(chapters, key=lambda x: x.order)
+    @classmethod
     def get_steps_for_subject(cls, subject_id: str) -> List[RoadStep]:
         steps = [s for s in cls._road_steps.values() if s.subject_id == subject_id]
+        return sorted(steps, key=lambda x: x.order)
+    @classmethod
+    def get_steps_for_chapter(cls, chapter_id: str) -> List[RoadStep]:
+        steps = [s for s in cls._road_steps.values() if s.chapter_id == chapter_id]
         return sorted(steps, key=lambda x: x.order)
     @classmethod
     def get_step(cls, step_id: str) -> Optional[RoadStep]: return cls._road_steps.get(step_id)
