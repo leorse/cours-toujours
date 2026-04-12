@@ -1,0 +1,26 @@
+.page { max-width: 700px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.header h1 { font-size: 2rem; font-weight: 800; margin: 0; }
+.road { position: relative; padding: 4rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 6rem; min-height: 400px; }
+.svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.asphalt { fill: none; stroke: #2c3e50; stroke-width: 40; stroke-linecap: round; stroke-linejoin: round; }
+.line { fill: none; stroke: rgba(255,255,255,0.5); stroke-width: 4; stroke-dasharray: 12 12; stroke-linecap: round; stroke-linejoin: round; }
+.wrapper { position: relative; z-index: 1; width: 100%; display: flex; justify-content: center; }
+.left { transform: translateX(-25%); }
+.center { transform: translateX(0); }
+.right { transform: translateX(25%); }
+.node { display: flex; flex-direction: column; align-items: center; background: none; border: none; cursor: pointer; transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
+.node:hover:not(.locked) { transform: scale(1.15); }
+.locked { opacity: 0.5; cursor: not-allowed; }
+.point { width: 60px; height: 60px; border-radius: 50%; background: var(--glass-bg, rgba(255,255,255,0.1)); border: 4px solid #444; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.5); position: relative; }
+.theory .point { width: 70px; height: 70px; background: linear-gradient(135deg,#3498db,#2980b9); border-color: rgba(255,255,255,0.2); }
+.validation .point { width: 80px; height: 80px; background: linear-gradient(135deg,#e67e22,#d35400); border-color: rgba(255,255,255,0.3); }
+.practice .point { width: 55px; height: 55px; background: #34495e; border-color: rgba(255,255,255,0.1); }
+.done .point { background: #27ae60 !important; border-color: rgba(255,255,255,0.5); }
+.locked .point { background: #333 !important; filter: grayscale(1); }
+.ring { position: absolute; top: -10px; left: -10px; width: calc(100% + 20px); height: calc(100% + 20px); pointer-events: none; }
+.signs { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 1rem; position: relative; }
+.signs::before { content: ''; position: absolute; top: -1rem; left: 50%; transform: translateX(-50%); width: 4px; height: calc(100% + 1rem); background: #555; z-index: -1; }
+.sign { font-weight: 600; font-size: 0.7rem; padding: 0.4rem 0.6rem; border-radius: 2px; width: 140px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; background: #fff; color: #333; border: 2px solid #333; }
+.theory .sign { background: #0055A4; color: white; border-color: white; }
+.sub { font-size: 0.6rem; }

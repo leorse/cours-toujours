@@ -1,0 +1,14 @@
+.page { padding: 2rem 1rem; max-width: 900px; margin: 0 auto; }
+.title { font-size: 2rem; font-weight: 800; margin-bottom: 2rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+.card { position: relative; border-radius: 16px; border: 3px solid var(--text); box-shadow: 5px 5px 0 var(--text);
+  overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+  background-image: var(--bg); background-size: cover; background-position: center;
+  min-height: 160px; text-align: left; background-color: var(--primary); }
+.card:hover { transform: translate(-3px, -3px); box-shadow: 8px 8px 0 var(--text); }
+.inner { position: absolute; bottom: 0; left: 0; right: 0; padding: 1rem 1.25rem;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; }
+.name { font-size: 1.3rem; font-weight: 800; margin: 0 0 0.5rem; }
+.bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; margin-bottom: 0.4rem; }
+.fill { height: 100%; background: #22c55e; border-radius: 3px; transition: width 0.5s; }
+.stats { font-size: 0.8rem; opacity: 0.85; }

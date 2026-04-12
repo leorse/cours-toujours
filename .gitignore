@@ -1,3 +1,5 @@
 content.db
 monenv
 **/__pycache__
+.claude
+save/

@@ -1,0 +1,5 @@
+.session { display: flex; flex-direction: column; gap: 1.5rem; }
+.list { display: flex; flex-direction: column; gap: 1rem; }
+.card { background: var(--card-bg); border: 2px solid var(--text); border-radius: 12px; padding: 1.5rem; box-shadow: 3px 3px 0 var(--text); }
+.num { font-size: 0.8rem; font-weight: 700; opacity: 0.5; margin-bottom: 0.5rem; text-transform: uppercase; }
+.footer { display: flex; justify-content: flex-end; padding-top: 1rem; }
