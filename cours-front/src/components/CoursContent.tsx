@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import renderMathInElement from 'katex/contrib/auto-render'
 import 'katex/dist/katex.min.css'
 import type { GeneratedExercise } from '../api/steps'
+import InputExercise from './exercises/InputExercise'
+import QcmExercise from './exercises/QcmExercise'
 import styles from './CoursContent.module.css'
 
 interface Props {
@@ -41,34 +43,42 @@ export default function CoursContent({ markdownHtml, inlineExercises, onComplete
 }
 
 function InlineExo({ exercise }: { exercise: GeneratedExercise }) {
-  const [answer, setAnswer] = useState('')
+  const [answer, setAnswer] = useState<unknown>('')
   const [revealed, setRevealed] = useState(false)
+  const isQcm = exercise.type === 'qcm' || exercise.type === 'multiselect'
+    || exercise.renderType === 'qcm' || exercise.renderType === 'multiselect'
 
-  const check = () => setRevealed(true)
-  const expected = Array.isArray(exercise.answer) ? exercise.answer.join(', ') : exercise.answer
+  // Comparaison côté client pour input libre
+  const isCorrect = (() => {
+    if (!revealed || isQcm) return false
+    const expected = Array.isArray(exercise.answer) ? exercise.answer[0] : exercise.answer as string
+    return String(answer).trim().toLowerCase() === String(expected).trim().toLowerCase()
+  })()
 
   return (
     <div className={styles.inlineExo}>
-      <p className={styles.exoQ}>{exercise.question}</p>
-      <div className={styles.exoRow}>
-        <input
-          className={`${styles.exoInput} ${revealed ? styles.revealed : ''}`}
-          type="text"
-          value={answer}
-          onChange={e => setAnswer(e.target.value)}
-          disabled={revealed}
-          placeholder="Ta réponse..."
+      {isQcm ? (
+        <QcmExercise
+          exercise={exercise}
+          value={answer as string | string[]}
+          onChange={setAnswer}
+          readonly={revealed}
         />
-        {exercise.unit && <span className={styles.exoUnit}>{exercise.unit}</span>}
-        {!revealed && (
-          <button className="btn-secondary" onClick={check}>Vérifier</button>
-        )}
-      </div>
-      {revealed && (
-        <p className={styles.exoAnswer}>Réponse : <strong>{expected}</strong></p>
+      ) : (
+        <InputExercise
+          exercise={exercise}
+          value={answer as string}
+          onChange={v => setAnswer(v)}
+          readonly={revealed}
+          correct={isCorrect}
+        />
       )}
-      {revealed && exercise.explanation && (
-        <p className={styles.exoExpl}>{exercise.explanation}</p>
+      {!revealed && (
+        <div className={styles.exoActions}>
+          <button className="btn-secondary" onClick={() => setRevealed(true)}>
+            Vérifier
+          </button>
+        </div>
       )}
     </div>
   )

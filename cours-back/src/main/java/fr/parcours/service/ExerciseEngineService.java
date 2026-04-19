@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.LinkedHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -40,13 +41,26 @@ public class ExerciseEngineService {
                 ex.setOptions(opts.stream().map(o -> interpolate(o.toString(), vars)).toList());
             }
 
+            // Passer tout le content interpolé dans data — chaque widget peut y lire ses paramètres
+            ex.setData(interpolateMap(content, vars));
+
             Object answer;
             if (template.getLogic() != null && !template.getLogic().isBlank()) {
                 answer = fmt(evalLogic(template.getLogic(), vars));
             } else {
                 Object raw = content.get("answer");
                 if (raw instanceof List<?> ansList) {
-                    answer = ansList.stream().map(a -> interpolate(a.toString(), vars)).toList();
+                    List<String> opts = ex.getOptions();
+                    // Si les éléments sont des entiers et qu'on a des options, ce sont des indices
+                    boolean indexBased = opts != null && !opts.isEmpty()
+                        && ansList.stream().allMatch(a -> a instanceof Integer || a instanceof Long);
+                    if (indexBased) {
+                        answer = ansList.stream()
+                            .map(a -> { int i = toInt(a); return (i >= 0 && i < opts.size()) ? opts.get(i) : ""; })
+                            .toList();
+                    } else {
+                        answer = ansList.stream().map(a -> interpolate(a.toString(), vars)).toList();
+                    }
                 } else {
                     answer = interpolate(raw != null ? raw.toString() : "", vars);
                 }
@@ -90,6 +104,29 @@ public class ExerciseEngineService {
             }
         }
         return vars;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> interpolateMap(Map<String, Object> map, Map<String, Object> vars) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (var entry : map.entrySet()) {
+            Object v = entry.getValue();
+            if (v instanceof String s) result.put(entry.getKey(), interpolate(s, vars));
+            else if (v instanceof List<?> list) result.put(entry.getKey(), interpolateList(list, vars));
+            else if (v instanceof Map<?, ?> m) result.put(entry.getKey(), interpolateMap((Map<String, Object>) m, vars));
+            else result.put(entry.getKey(), v);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> interpolateList(List<?> list, Map<String, Object> vars) {
+        return list.stream().map(item -> {
+            if (item instanceof String s) return (Object) interpolate(s, vars);
+            if (item instanceof Map<?, ?> m) return (Object) interpolateMap((Map<String, Object>) m, vars);
+            if (item instanceof List<?> l) return (Object) interpolateList(l, vars);
+            return item;
+        }).toList();
     }
 
     private String interpolate(String text, Map<String, Object> vars) {

@@ -1,5 +1,6 @@
 content.db
 monenv
 **/__pycache__
-.claude
+.claude/settings.local.json
 save/
+cours-back/src/main/resources/static

@@ -6,6 +6,7 @@ import fr.parcours.service.*;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.beans.factory.annotation.Value;
@@ -144,8 +145,9 @@ public class StepController {
             }
             m.appendTail(sb);
 
-            var doc = Parser.builder().build().parse(sb.toString());
-            String html = HtmlRenderer.builder().build().render(doc);
+            var extensions = List.of(TablesExtension.create());
+            var doc = Parser.builder().extensions(extensions).build().parse(sb.toString());
+            String html = HtmlRenderer.builder().extensions(extensions).build().render(doc);
             return Map.of("html", html, "exercises", exercises);
         } catch (Exception e) {
             log.warn("Erreur lecture markdown {}/{}: {}", subjectId, file, e.getMessage());

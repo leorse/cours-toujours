@@ -46,7 +46,7 @@ generators:
         - "[[ {b} + 10 ]]"
         - "[[ {a} + {b} ]]"
       answer: [1]
-      explanation: "La réponse est {a}*{b}"
+      explanation: "{a} × {b} = **[[{a}*{b}]]**"
   - id: gen_mul_cours_03
     tags: ["math.calcul.mul.proprietes", "format.theory"]
     difficulty: 1
@@ -64,7 +64,6 @@ generators:
         - " 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 "
         - " 6 + 6 + 6 + 6 + 6"
       answer: [0,3]
-      explanation: "La réponse est {a}*{b}"
   - id: gen_mul_table_1
     tags: ["math.calcul.mul.table_1"]
     difficulty: 1

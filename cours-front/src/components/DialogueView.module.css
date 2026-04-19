@@ -1,12 +1,121 @@
-.wrap { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 1rem; }
-.charArea { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-.sprite { border-radius: 50%; overflow: hidden; border: 3px solid var(--text); box-shadow: 4px 4px 0 var(--text); }
-.charName { font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.bubble { max-width: 600px; width: 100%; background: var(--card-bg); border: 3px solid var(--text); border-radius: 16px; padding: 0.5re 1rem; box-shadow: 5px 5px 0 var(--text); cursor: pointer; transition: transform 0.1s; position: relative; }
-.bubble:hover { transform: translateY(-2px); }
-.text { font-size: 1.1rem; line-height: 1.7; margin: 0; white-space: pre-wrap; }
-.cta { position: absolute; bottom: 0.75rem; right: 1rem; font-size: 0.9rem; opacity: 0.5; }
-.dots { display: flex; gap: 0.4rem; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,0.2); transition: background 0.2s; }
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ── Personnage ──────────────────────────────────────────────────────────── */
+
+.charArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+/* Le personnage de gauche s'aligne à gauche */
+.charLeft  { align-items: flex-start; padding-left: 1rem; }
+/* Le personnage de droite s'aligne à droite */
+.charRight { align-items: flex-end;   padding-right: 1rem; }
+
+.sprite {
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--text);
+  box-shadow: 4px 4px 0 var(--text);
+  background-size: auto;
+  background-repeat: no-repeat;
+}
+
+.charName {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.monoImg {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+/* ── Bulle ───────────────────────────────────────────────────────────────── */
+
+.bubble {
+  max-width: 560px;
+  width: 100%;
+  background: var(--card-bg);
+  border: 3px solid var(--text);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem 2rem;
+  box-shadow: 5px 5px 0 var(--text);
+  cursor: pointer;
+  position: relative;
+}
+.bubble:active { opacity: 0.85; }
+
+/* Queues de bulle selon le côté */
+.bubbleLeft::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  border: 7px solid transparent;
+  border-bottom-color: var(--text);
+}
+.bubbleLeft::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 30px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--card-bg);
+}
+
+.bubbleRight::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  right: 28px;
+  border: 7px solid transparent;
+  border-bottom-color: var(--text);
+}
+.bubbleRight::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: 30px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--card-bg);
+}
+
+.text {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Style markdown dans la bulle */
+.text strong { font-weight: 800; }
+.text em     { font-style: italic; }
+
+.cta {
+  position: absolute;
+  bottom: 0.6rem;
+  right: 1rem;
+  font-size: 0.85rem;
+  opacity: 0.45;
+}
+
+/* ── Points de progression ───────────────────────────────────────────────── */
+
+.dots   { display: flex; gap: 0.4rem; }
+.dot    { width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,0.2); }
 .active { background: var(--primary); }
-.monoImg { width: 220px; height: 220px; object-fit: contain; border-radius: 12px; }

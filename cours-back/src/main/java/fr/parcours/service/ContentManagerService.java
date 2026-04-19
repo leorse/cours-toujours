@@ -450,25 +450,10 @@ public class ContentManagerService {
         return t;
     }
 
-    @SuppressWarnings("unchecked")
     private ExerciseTemplate mapToGenerator(Map<String, Object> m, String subjectId) {
-        ExerciseTemplate t = new ExerciseTemplate();
-        t.setId((String) m.get("id"));
-        Object tagsRaw = m.get("tags");
-        if (tagsRaw instanceof List<?> tagList) {
-            t.setTags(tagList.stream().map(Object::toString).collect(Collectors.toList()));
-        }
-        t.setDifficulty((int) m.getOrDefault("difficulty", 1));
-        t.setGeneratorType((String) m.get("type"));
+        // Les générateurs ont la même structure que les templates — réutiliser le même mapping
+        ExerciseTemplate t = mapToTemplate(m, subjectId);
         t.setWeight((int) m.getOrDefault("weight", 1));
-        // Tout le reste comme config du générateur
-        Map<String, Object> config = new HashMap<>(m);
-        config.remove("id");
-        config.remove("tags");
-        config.remove("difficulty");
-        config.remove("type");
-        config.remove("weight");
-        t.setGeneratorConfig(config);
         return t;
     }
 

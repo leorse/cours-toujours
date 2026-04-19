@@ -9,3 +9,5 @@ target/
 !.mvn/wrapper/maven-wrapper.properties
 .DS_Store
 content.db
+# Artefact de build frontend — généré par npm run build dans cours-front
+cours-back/src/main/resources/static/

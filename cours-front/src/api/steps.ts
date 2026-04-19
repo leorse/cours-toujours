@@ -14,6 +14,7 @@ export interface GeneratedExercise {
   variables?: Record<string, unknown>
   tags: string[]
   meta?: Record<string, unknown>
+  data?: Record<string, unknown>
 }
 
 export interface StepPayload {

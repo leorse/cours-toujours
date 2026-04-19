@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Capacitor — projet Android Studio généré (lourd, régénérable avec npx cap add android)
+android/
+ios/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -21,4 +21,6 @@ public class GeneratedExercise {
     private Map<String, Object> variables;
     private List<String> tags;
     private Map<String, Object> meta;
+    /** Tout le contenu YAML interpolé — les widgets custom lisent leurs paramètres ici */
+    private Map<String, Object> data;
 }
